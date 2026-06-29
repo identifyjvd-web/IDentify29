@@ -11,6 +11,7 @@
         import { firebaseConfig } from "./firebase-env.js";
 
         try {
+            window.firebaseLoadedInIndex = true;
             const app = initializeApp(firebaseConfig);
             const auth = getAuth(app);
 
@@ -29,6 +30,15 @@
             console.error("Routing error:", e);
             window.location.replace('Login_Panel.html');
         }
+    </script>
+    <script>
+        // Fallback: If Firebase module fails to execute (e.g. adblocker, github pages path issues), redirect to Login after 3 seconds.
+        setTimeout(() => {
+            if (!window.firebaseLoadedInIndex) {
+                console.warn("Firebase took too long to load or failed. Redirecting to Login...");
+                window.location.replace('Login_Panel.html');
+            }
+        }, 3000);
     </script>
 </head>
 

@@ -77,7 +77,7 @@
 <body class="flex flex-col h-screen">
 
     <div id="initial-splash-screen" class="fixed inset-0 z-[99999] bg-[#f8fafd] flex flex-col items-center justify-center transition-opacity duration-500">
-        <div class="flex flex-col items-center justify-center drop-shadow-2xl -mt-64">
+        <div class="flex flex-col items-center justify-center drop-shadow-2xl -mt-96">
             <img src="./idapplogo.png" class="w-[180px] h-[180px] object-contain mix-blend-multiply">
         </div>
         <!-- 3 Loading Dots -->
@@ -1757,14 +1757,19 @@
             function logoutUser(isAuto = false) {
                 stopAutoLogoutTimer();
                 saveAuthUser(null);
-                closeAccountModal();
-                
+                if (typeof closeAccountModal === 'function') closeAccountModal();
                 if (typeof setBlankRecordMode === 'function') setBlankRecordMode('none');
                 if (typeof closeSchoolConfig === 'function') closeSchoolConfig();
                 if (typeof closeAllMenus === 'function') closeAllMenus();
                 
                 window.location.replace('Login_Panel.html?msg=' + (isAuto ? 'session_expired' : 'logout'));
             }
+
+            // Fallback: Forcefully remove splash screen after 5 seconds just in case Firebase hangs
+            setTimeout(() => {
+                hideSplashScreen();
+            }, 5000);
+
             function confirmLogout() {
                 showModal('logout', 'Logout?', 'Kya aap admin panel se logout karna chahte hain?', () => {
                     logoutUser();
