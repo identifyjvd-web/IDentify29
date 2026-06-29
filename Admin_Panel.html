@@ -262,10 +262,10 @@
                         </div>
                         <div id="bulk-actions-container"
                             class="hidden items-center gap-1.5 ml-auto pr-1 animate-in fade-in zoom-in duration-200">
-                            <button id="btn-bulk-back" onclick="resetBulkSelection()"
+                            <button id="btn-select-all" onclick="bulkToggleSelectAll()"
                                 class="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center active:scale-90 transition-transform shadow-sm"
-                                title="Cancel Selection">
-                                <i class="fa-solid fa-arrow-left text-sm"></i>
+                                title="Select All">
+                                <span></span><i class="fa-regular fa-square"></i>
                             </button>
                             <button id="btn-bulk-delete" onclick="bulkDeleteSelected()"
                                 class="w-9 h-9 rounded-full bg-rose-500 text-white flex items-center justify-center active:scale-90 transition-transform shadow-sm"
@@ -1263,7 +1263,7 @@
                 }
             }
 
-            async function saveAllManageSchoolDetails() {
+                        async function saveAllManageSchoolDetails() {
                 const name = document.getElementById('manage-school-name')?.value || schoolConfig.name || '';
                 const code = document.getElementById('manage-school-code')?.value || schoolConfig.code || '';
                 const address = document.getElementById('manage-school-address')?.value || schoolConfig.address || '';
@@ -1284,42 +1284,55 @@
                     msgEl.className = 'hidden text-sm font-bold rounded-xl px-4 py-2 mt-2';
                 }
 
-                const newConfig = {
-                    ...schoolConfig,
-                    name: name,
-                    code: code,
-                    address: address,
-                    contactPerson: contactPerson,
-                    mobile: mobile,
-                    email: email,
-                    whatsapp: whatsapp,
-                    instagram: instagram,
-                    youtube: youtube,
-                    facebook: facebook,
-                    systemAbout: systemAbout
-                };
-
-                if (tempManageSchoolLogo) {
-                    newConfig.logo = tempManageSchoolLogo;
-                } else if (tempManageSchoolLogo === '') {
-                    delete newConfig.logo;
-                }
-                saveSchoolConfig(newConfig);
-                updateBulkHeader();
-
                 if (btn) {
                     btn.disabled = true;
                     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
                 }
 
+                const newConfig = { ...schoolConfig };
+        
+                if (blankRecordMode === 'edit_about') {
+                    newConfig.systemName = name;
+                    newConfig.systemAddress = address;
+                    newConfig.systemMobile = mobile;
+                    newConfig.systemEmail = email;
+                    newConfig.systemWhatsapp = whatsapp;
+                    newConfig.systemInstagram = instagram;
+                    newConfig.systemYoutube = youtube;
+                    newConfig.systemFacebook = facebook;
+                    newConfig.systemAbout = systemAbout;
+                } else {
+                    newConfig.name = name;
+                    newConfig.code = code;
+                    newConfig.address = address;
+                    newConfig.contactPerson = contactPerson;
+                    newConfig.mobile = mobile;
+                    newConfig.email = email;
+                    newConfig.whatsapp = whatsapp;
+                    newConfig.instagram = instagram;
+                    newConfig.youtube = youtube;
+                    newConfig.facebook = facebook;
+                }
+
+                if (tempManageSchoolLogo) {
+                    if (blankRecordMode === 'edit_about') newConfig.systemLogo = tempManageSchoolLogo;
+                    else newConfig.logo = tempManageSchoolLogo;
+                } else if (tempManageSchoolLogo === '') {
+                    if (blankRecordMode === 'edit_about') delete newConfig.systemLogo;
+                    else delete newConfig.logo;
+                }
+                
+                saveSchoolConfig(newConfig);
+                if (typeof updateBulkHeader === 'function') updateBulkHeader();
+
                 setTimeout(() => {
                     tempManageSchoolLogo = null;
-                    showStatusCard('Success', 'Details saved successfully!', { tone: 'success', progress: 100, dismissible: true, autoHideMs: 3000 });
+                    if (typeof showStatusCard === 'function') showStatusCard('Success', 'Details saved successfully!', { tone: 'success', progress: 100, dismissible: true, autoHideMs: 3000 });
                     if (btn) {
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Details';
                     }
-                    setBlankRecordMode('settings');
+                    if (typeof setBlankRecordMode === 'function') setBlankRecordMode('settings');
                 }, 500);
             }
 
@@ -5943,23 +5956,6 @@
                                         </div>
                                     </div>
 
-                                    <div class="border-t border-slate-100 my-4"></div>
-                                    <h4 class="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-2"><i class="fa-solid fa-lock text-slate-400 mr-1"></i> Login Credentials</h4>
-
-                                    <div class="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-user-lock"></i> User ID</label>
-                                            <input type="text" id="new-school-id" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-purple-400 transition" placeholder="User ID" value="${schoolConfig.loginId || ''}">
-                                        </div>
-                                        <div class="relative">
-                                            <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-key"></i> Password</label>
-                                            <input type="password" id="new-school-pass" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-purple-400 transition pr-10" placeholder="New Password (min 6 chars)" value="${schoolConfig.loginEnc ? decryptLocal(schoolConfig.loginEnc) : (schoolConfig.loginPassword || '')}">
-                                            <button type="button" onclick="toggleManagePassword()" class="absolute right-3 top-[34px] text-slate-400 hover:text-purple-600 transition">
-                                                <i id="manage-pass-icon" class="fa-solid fa-eye text-sm"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
                                     <div id="school-create-msg" class="hidden text-sm font-bold rounded-xl px-4 py-2 mt-2"></div>
                                     
                                     <button id="btn-save-manage-school" onclick="saveAllManageSchoolDetails()" class="w-full py-4 mt-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm">
@@ -5980,8 +5976,8 @@
                                 <div class="w-full space-y-4">
                                     <div class="flex gap-4 items-center">
                                         <div class="w-24 h-24 rounded-3xl bg-slate-50 border-2 border-dashed border-emerald-200 flex items-center justify-center cursor-pointer relative overflow-hidden shrink-0 hover:bg-emerald-50 transition group" onclick="document.getElementById('manage-school-logo').click()">
-                                            ${schoolConfig.logo ? `
-                                                <img src="${schoolConfig.logo}" id="manage-logo-preview-img" class="absolute inset-0 w-full h-full object-cover z-10 pointer-events-none">
+                                            ${schoolConfig.systemLogo ? `
+                                                <img src="${schoolConfig.systemLogo}" id="manage-logo-preview-img" class="absolute inset-0 w-full h-full object-cover z-10 pointer-events-none">
                                                 <button type="button" id="manage-logo-remove-btn" onclick="event.stopPropagation(); removeManageSchoolLogo();" class="absolute top-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center z-20 shadow-md transform transition-transform opacity-0 group-hover:opacity-100">
                                                     <i class="fa-solid fa-xmark text-xs"></i>
                                                 </button>
@@ -5998,39 +5994,39 @@
                                         <div class="flex-1 space-y-2">
                                             <div>
                                                 <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-phone"></i> Mobile No</label>
-                                                <input type="text" id="manage-school-mobile" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Phone" value="${schoolConfig.mobile || ''}">
+                                                <input type="text" id="manage-school-mobile" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Phone" value="${schoolConfig.systemMobile || ''}">
                                             </div>
                                             <div>
                                                 <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-envelope"></i> Email</label>
-                                                <input type="email" id="manage-school-email" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Email" value="${schoolConfig.email || ''}">
+                                                <input type="email" id="manage-school-email" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Email" value="${schoolConfig.systemEmail || ''}">
                                             </div>
                                         </div>
                                     </div>
 
                                     <div>
                                         <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-map-location-dot"></i> Address</label>
-                                        <input type="text" id="manage-school-address" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Full address" value="${schoolConfig.address || ''}">
+                                        <input type="text" id="manage-school-address" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Full address" value="${schoolConfig.systemAddress || ''}">
                                     </div>
 
                                     <div>
                                         <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-brands fa-whatsapp"></i> WhatsApp No</label>
-                                        <input type="text" id="manage-school-whatsapp" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Enter number" value="${schoolConfig.whatsapp || ''}">
+                                        <input type="text" id="manage-school-whatsapp" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Enter number" value="${schoolConfig.systemWhatsapp || ''}">
                                     </div>
 
                                     <div class="grid grid-cols-2 gap-3">
                                         <div>
                                             <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-brands fa-instagram"></i> Instagram</label>
-                                            <input type="text" id="manage-school-instagram" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Instagram URL" value="${schoolConfig.instagram || ''}">
+                                            <input type="text" id="manage-school-instagram" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Instagram URL" value="${schoolConfig.systemInstagram || ''}">
                                         </div>
                                         <div>
                                             <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-brands fa-youtube"></i> YouTube</label>
-                                            <input type="text" id="manage-school-youtube" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="YouTube URL" value="${schoolConfig.youtube || ''}">
+                                            <input type="text" id="manage-school-youtube" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="YouTube URL" value="${schoolConfig.systemYoutube || ''}">
                                         </div>
                                     </div>
 
                                     <div>
                                         <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-brands fa-facebook-f"></i> Facebook</label>
-                                        <input type="text" id="manage-school-facebook" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Facebook URL" value="${schoolConfig.facebook || ''}">
+                                        <input type="text" id="manage-school-facebook" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Facebook URL" value="${schoolConfig.systemFacebook || ''}">
                                     </div>
 
                                     <div>
@@ -7892,42 +7888,6 @@
         </div>
     </div>
 
-    <div id="fb_edit_backdrop" class="fb-modal-backdrop" style="align-items: center;" onclick="fb_closeEditor(event)">
-        <div class="fb-modal-card premium-form-card relative overflow-hidden" onclick="event.stopPropagation()">
-            <!-- Premium Decorative Card Graphics -->
-            <svg class="absolute top-[-30px] right-[-30px] w-36 h-36 opacity-[0.06] text-emerald-800 pointer-events-none z-0" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="0.3">
-                <circle cx="50" cy="50" r="10" />
-                <circle cx="50" cy="50" r="20" />
-                <circle cx="50" cy="50" r="30" />
-                <circle cx="50" cy="50" r="40" />
-                <line x1="0" y1="50" x2="100" y2="50" />
-                <line x1="50" y1="0" x2="50" y2="100" />
-            </svg>
-
-            <svg class="absolute bottom-[-20px] left-[-20px] w-32 h-24 opacity-[0.06] text-blue-600 pointer-events-none z-0" viewBox="0 0 100 50" fill="none" stroke="currentColor" stroke-width="0.3">
-                <path d="M0,25 C20,10 40,40 60,25 C80,10 100,25 100,25" />
-                <path d="M0,30 C20,15 40,45 60,30 C80,15 100,30 100,30" />
-            </svg>
-
-            <div class="p-6 border-b border-gray-50 flex items-center justify-between bg-transparent relative z-10">
-                <div>
-                    <div class="text-sm font-black text-slate-800 uppercase tracking-tight">Edit Field</div>
-                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Update configurations
-                    </div>
-                </div>
-                <button onclick="fb_closeEditor()"
-                    class="w-9 h-9 rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-500 flex items-center justify-center text-slate-500 transition">
-                    <i class="fa-solid fa-xmark text-sm"></i>
-                </button>
-            </div>
-            <div class="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scroll" id="fb_edit_content"></div>
-            <div class="p-6 bg-slate-50">
-                <button onclick="fb_closeEditor()"
-                    class="w-full py-4 rounded-2xl bg-emerald-600 text-white font-black text-sm active:scale-95 transition shadow-sm">DONE</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Portable Dropdown Menus (Fixed to body for maximum layer support) -->
     <div id="filterSortMenu" class="filter-menu">
         <div class="menu-item" onclick="setSort('recent')"><i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
@@ -8437,6 +8397,7 @@
                             <i class="fa-solid fa-arrow-down text-xs"></i>
                         </button>
                     </div>
+                        ${isEditing ? `<div class="mt-3 p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl animate-fade-in flex flex-col gap-3">${fb_getEditorHTML()}</div>` : ''}
                     </div>`;
                     container.appendChild(div);
                     renderedCount++;
@@ -8485,6 +8446,7 @@
                                 <i class="fa-solid fa-arrow-down text-xs"></i>
                             </button>
                         </div>
+                        ${isEditing ? `<div class="mt-3 p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl animate-fade-in flex flex-col gap-3">${fb_getEditorHTML()}</div>` : ''}
                     </div>`;
                     container.appendChild(div);
                     renderedCount++;
@@ -8689,9 +8651,7 @@
             if (!field) return;
             fb_currentEditingId = id;
             fb_editor_draft = JSON.parse(JSON.stringify(field));
-            const backdrop = document.getElementById('fb_edit_backdrop');
-            if (backdrop) backdrop.classList.add('active');
-            fb_renderEditor();
+            
             fb_renderForm();
         }
 
@@ -8714,25 +8674,17 @@
                 fb_editor_draft.width = meta.width || 600;
                 fb_editor_draft.height = meta.height || 800;
             }
-            const backdrop = document.getElementById('fb_edit_backdrop');
-            if (backdrop) backdrop.classList.add('active');
-            fb_renderEditor();
+            
             fb_renderForm();
         }
 
         function fb_closeEditor(evt) {
-            if (evt && evt.target && evt.target.id !== 'fb_edit_backdrop') return;
             fb_currentEditingId = null;
             fb_editor_draft = null;
-            const backdrop = document.getElementById('fb_edit_backdrop');
-            if (backdrop) backdrop.classList.remove('active');
             fb_renderForm();
         }
-
-        function fb_renderEditor() {
-            const content = document.getElementById('fb_edit_content');
-            if (!content || !fb_editor_draft) return;
-
+        function fb_getEditorHTML() {
+            if (!fb_editor_draft) return '';
             const field = fb_editor_draft;
             if (field.__source === 'standard') {
                 const isFixedTopField = FB_FIXED_TOP_FIELDS.includes(String(field.id || ''));
@@ -8753,8 +8705,7 @@
                             `).join('')}
                         </div>
                     </div>
-                `
-                    : '';
+                ` : '';
                 const dimensionHtml = (field.id === 'photo')
                     ? `
                 <div class="flex gap-4 mt-4">
@@ -8769,12 +8720,11 @@
                 </div>
                 ` : '';
 
-                content.innerHTML = `
+                return `
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Field Label</label>
                     <input type="text" value="${String(field.label || '').replace(/"/g, '&quot;')}" class="app-input text-slate-700 font-bold" oninput="fb_editorSetLabel(this.value)" placeholder="Field label">
                 </div>
-                ${optionsHtml}
                 ${dimensionHtml}
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Field Type</label>
@@ -8790,9 +8740,11 @@
                     </button>
                 </div>
                 ${optionsHtml}
-                <button onclick="fb_applyEditor()" class="w-full py-4 rounded-2xl bg-emerald-600 text-white font-black text-sm active:scale-95 transition shadow-sm">APPLY CHANGES</button>
-            `;
-                return;
+                <div class="flex gap-2">
+                    <button onclick="fb_closeEditor()" class="flex-1 py-4 rounded-2xl bg-slate-200 text-slate-600 font-black text-sm active:scale-95 transition shadow-sm">CANCEL</button>
+                    <button onclick="fb_applyEditor()" class="flex-1 py-4 rounded-2xl bg-emerald-600 text-white font-black text-sm active:scale-95 transition shadow-sm">APPLY CHANGES</button>
+                </div>
+                `;
             }
 
             const typeOptions = ['text', 'number', 'date', 'select', 'image'].map(type => `<option value="${type}" ${field.type === type ? 'selected' : ''}>${type.toUpperCase()}</option>`).join('');
@@ -8812,10 +8764,9 @@
                         `).join('')}
                     </div>
                 </div>
-            `
-                : '';
+            ` : '';
 
-            content.innerHTML = `
+            return `
             <div>
                 <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Field Label</label>
                 <input type="text" value="${String(field.label || '').replace(/"/g, '&quot;')}" class="app-input text-slate-700 font-bold" oninput="fb_editorSetLabel(this.value)" placeholder="Field label">
@@ -8831,16 +8782,17 @@
                 </button>
             </div>
             ${optionsHtml}
-            <button onclick="fb_applyEditor()" class="w-full py-4 rounded-2xl bg-emerald-600 text-white font-black text-sm active:scale-95 transition shadow-sm">APPLY CHANGES</button>
-        `;
+            <div class="flex gap-2">
+                <button onclick="fb_closeEditor()" class="flex-1 py-4 rounded-2xl bg-slate-200 text-slate-600 font-black text-sm active:scale-95 transition shadow-sm">CANCEL</button>
+                <button onclick="fb_applyEditor()" class="flex-1 py-4 rounded-2xl bg-emerald-600 text-white font-black text-sm active:scale-95 transition shadow-sm">APPLY CHANGES</button>
+            </div>
+            `;
         }
 
         function fb_editorSetLabel(value) {
             if (!fb_editor_draft) return;
             fb_editor_draft.label = value;
-        }
-
-        function fb_editorSetType(type) {
+            fb_renderForm();\n}function fb_editorSetType(type) {
             if (!fb_editor_draft) return;
             fb_editor_draft.type = type;
             if (type === 'select') {
@@ -8850,39 +8802,27 @@
             } else {
                 fb_editor_draft.options = [];
             }
-            fb_renderEditor();
-        }
-
-        function fb_editorToggleRequired() {
+            
+            fb_renderForm();\n}function fb_editorToggleRequired() {
             if (!fb_editor_draft) return;
             fb_editor_draft.required = !fb_editor_draft.required;
-            fb_renderEditor();
-        }
-
-        function fb_editorSetOption(index, value) {
+            
+            fb_renderForm();\n}function fb_editorSetOption(index, value) {
             if (!fb_editor_draft || !Array.isArray(fb_editor_draft.options)) return;
             fb_editor_draft.options[index] = value;
-        }
-
-        function fb_editorSetDimension(key, value) {
+            fb_renderForm();\n}function fb_editorSetDimension(key, value) {
             if (!fb_editor_draft) return;
             fb_editor_draft[key] = parseInt(value, 10) || 0;
-        }
-
-        function fb_editorAddOption() {
+            fb_renderForm();\n}function fb_editorAddOption() {
             if (!fb_editor_draft || fb_editor_draft.type !== 'select') return;
             if (!Array.isArray(fb_editor_draft.options)) fb_editor_draft.options = [];
             fb_editor_draft.options.push(`Option ${fb_editor_draft.options.length + 1}`);
-            fb_renderEditor();
-        }
-
-        function fb_editorRemoveOption(index) {
+            
+            fb_renderForm();\n}function fb_editorRemoveOption(index) {
             if (!fb_editor_draft || !Array.isArray(fb_editor_draft.options)) return;
             fb_editor_draft.options.splice(index, 1);
-            fb_renderEditor();
-        }
-
-        function fb_applyEditor() {
+            
+            fb_renderForm();\n}function fb_applyEditor() {
             if (!fb_editor_draft) return;
             const label = String(fb_editor_draft.label || '').trim();
             if (!label) {
