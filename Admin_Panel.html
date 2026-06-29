@@ -456,8 +456,7 @@
         </div>
 
         <script>
-        (function() {
-            function sanitizeHTML(str) {
+        function sanitizeHTML(str) {
                 if (str == null) return '';
                 return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
             }
@@ -9433,28 +9432,7 @@
     }
     
     // Expose necessary functions to the global scope for inline HTML handlers
-    Object.assign(window, {
-        applyCrop, binLpClick, binLpRestoreClick, bulkBinDelete, bulkBinRestore, bulkDeleteSelected, 
-        bulkDownloadSelectedJpg, bulkExportSelected, bulkVerifySelected, clearActivity, closeAccountModal, 
-        closeCameraModal, closeCropModal, closeModal, closeSchoolConfig, closeStudentDetailPopup, 
-        confirmDeleteAllSystemData, deleteFromPreview, editFromPreview, fb_applyEditor, fb_closeEditor, 
-        fb_closeQuickAdd, fb_confirmQuickAdd, fb_deleteField, fb_editorAddOption, fb_editorRemoveOption, 
-        fb_editorSetDimension, fb_editorSetLabel, fb_editorSetOption, fb_editorSetType, fb_editorToggleRequired, 
-        fb_moveFieldInOrder, fb_openEditor, fb_openQuickAdd, fb_openStandardEditor, fb_permanentlyDeleteField, 
-        fb_quickAddAddOption, fb_removeStandardField, fb_restoreField, fb_saveForm, fb_toggleFieldQr, 
-        fb_toggleQrEnable, fb_toggleQuickAddOptions, fb_toggleRequired, fb_toggleStandardRequired, 
-        filterByClassFromDataInfo, goToDatabase, handleAadharInput, handleDobInput, handleFrameClick, 
-        handleHomeTouchEnd, handleHomeTouchStart, handleMobileInput, handlePreviewTouchCancel, handlePreviewTouchEnd, 
-        handlePreviewTouchStart, handleSortToggle, hideStatusCard, ie_runExport, ie_toggleExportQrFields, 
-        logoutUser, onSearchInput, openDataInformation, openFormBuilder, openImportExportModal, openManageSchools, 
-        openNextPreview, openPrevPreview, openSchoolConfig, openStudentDetailPopup, previewManageSchoolLogo, 
-        resetBulkSelection, saveAccountCredentials, saveAllManageSchoolDetails, saveAndNew, saveRecord, 
-        saveSettings, scrollTableRows, setBlankRecordMode, setFilterValue, setSort, showForgotFields, 
-        submitForgotPassword, submitLogin, syncBlankField, syncBlankSelect, syncToDrive, takeSnapshot, 
-        toggleAllBinSelection, toggleBinSelection, toggleFilterMenu, toggleLoginPassword, toggleManagePassword, 
-        toggleStudentForm, triggerPhotoCapture, triggerPhotoUpload, verifyFromPreview
-    });
-    })();
+    
     </script>
 
     <!-- Swipe to Back Functionality -->
