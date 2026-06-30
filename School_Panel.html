@@ -60,12 +60,52 @@
 
             onAuthStateChanged(window.auth, (user) => {
                 if (!user) {
-                    logoutUser();
+                    window.location.href = "index.html";
                 } else {
-                                pullIndicator.innerHTML = '<div class="text-center py-4 text-emerald-600 font-bold flex flex-col items-center justify-center gap-2 bg-emerald-50 shadow-inner"><i class="fa-solid fa-arrow-down animate-bounce text-xl"></i><span>Pull to refresh</span></div>';
-                            }
+                    const loadingScreen = document.getElementById('loading-screen');
+                    if (loadingScreen) loadingScreen.classList.add('hidden');
+                }
+            });
+
+            window.addEventListener('DOMContentLoaded', () => {
+                const container = document.querySelector('.main-content-area') || document.body;
+                let startY = 0;
+                let currentY = 0;
+                let isPulling = false;
+                let pullIndicator = null;
+                const pptrThreshold = 80;
+
+                container.addEventListener('touchstart', (e) => {
+                    if (container.scrollTop === 0) {
+                        startY = e.touches[0].clientY;
+                        isPulling = true;
+                    }
+                }, {passive: true});
+
+                container.addEventListener('touchmove', (e) => {
+                    if (!isPulling) return;
+                    currentY = e.touches[0].clientY;
+                    const diff = currentY - startY;
+
+                    if (diff > 0 && container.scrollTop === 0) {
+                        if (!pullIndicator) {
+                            pullIndicator = document.createElement('div');
+                            pullIndicator.style.height = '0px';
+                            pullIndicator.style.overflow = 'hidden';
+                            pullIndicator.style.transition = 'height 0.2s';
+                            pullIndicator.innerHTML = '<div class="text-center py-4 text-emerald-600 font-bold flex flex-col items-center justify-center gap-2 bg-emerald-50 shadow-inner"><i class="fa-solid fa-arrow-down animate-bounce text-xl"></i><span>Pull to refresh</span></div>';
+                            container.insertBefore(pullIndicator, container.firstChild);
                         }
-                    }, {passive: true});
+                        
+                        let height = Math.min(diff * 0.5, 120);
+                        pullIndicator.style.height = height + 'px';
+                        
+                        if (height >= pptrThreshold) {
+                            pullIndicator.innerHTML = '<div class="text-center py-4 text-emerald-600 font-bold flex flex-col items-center justify-center gap-2 bg-emerald-50 shadow-inner"><i class="fa-solid fa-arrow-down animate-bounce text-xl"></i><span>Pull to refresh</span></div>';
+                        }
+                    }
+                }, {passive: true});
+
 
                     container.addEventListener('touchend', (e) => {
                         if (!isPulling) return;
@@ -105,7 +145,7 @@
                         }
                     });
                 });
-            }
+            } catch (e) { console.error("Firebase init error:", e); }
 
             function setupFilterCardLongPress(elementId, filterType, isBin = false) {
                 const el = document.getElementById(elementId);
@@ -3578,7 +3618,7 @@
                                     level: 'H'
                                 });
                                 const qrBase64 = qr.toDataURL().split(',')[1];
-                                qrFileName = `QR_${baseFilename}.png`;
+                                qrFileName = `QR_${baseFilename}.jpg`;
                                 zip.file(`QR_Codes/${qrFileName}`, qrBase64, {base64: true});
                             } catch(e) { console.error("QR Error", e); }
                         }
@@ -7930,14 +7970,51 @@
             if (selectedInputs.length === 0) throw new Error("No columns selected for import.");
             
             const mapping = {};
+            let newFieldsAdded = false;
             selectedInputs.forEach(cb => {
                 const col = cb.value;
                 const idx = cb.id.replace('ie-cb-', '');
                 const sel = document.getElementById('ie-sel-' + idx);
-                let matchedId = sel ? sel.value : null;
+                let matchedId = sel && sel.value ? sel.value : null;
                 
-                mapping[col] = matchedId || col.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+                if (!matchedId) {
+                    const sysId = 'custom_' + col.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+                    mapping[col] = sysId;
+                    
+                    if (typeof fb_fields !== 'undefined' && typeof fb_form_order !== 'undefined') {
+                        if (!fb_fields.some(f => f.id === sysId)) {
+                            fb_fields.push({
+                                id: sysId,
+                                type: 'text',
+                                label: col,
+                                required: false,
+                                placeholder: 'Imported ' + col
+                            });
+                            fb_form_order.push(sysId);
+                            newFieldsAdded = true;
+                        }
+                    }
+                } else {
+                    mapping[col] = matchedId;
+                }
             });
+            
+            if (newFieldsAdded && typeof window.firebaseAPI !== 'undefined' && window.db) {
+                const schId = (typeof schoolConfig !== 'undefined' && schoolConfig.loginId) ? schoolConfig.loginId : (typeof currentUser !== 'undefined' && currentUser ? currentUser.userId : 'anonymous');
+                window.firebaseAPI.setDoc(window.firebaseAPI.doc(window.db, "settings", schId), {
+                    formBuilder: {
+                        fields: fb_fields,
+                        formOrder: fb_form_order,
+                        standardConfig: typeof fb_standard_config !== 'undefined' ? fb_standard_config : {},
+                        removed: typeof fb_removed !== 'undefined' ? fb_removed : [],
+                        standardLabels: typeof fb_standard_labels !== 'undefined' ? fb_standard_labels : {},
+                        standardMeta: typeof fb_standard_meta !== 'undefined' ? fb_standard_meta : {}
+                    }
+                }, {merge: true}).catch(e => console.error("Auto-save FB mapping failed", e));
+                
+                localStorage.setItem('identify_fb_fields', JSON.stringify(fb_fields));
+                localStorage.setItem('identify_fb_form_order', JSON.stringify(fb_form_order));
+            }
             
             let importCount = 0;
             const schoolId = (schoolConfig && schoolConfig.loginId) ? schoolConfig.loginId : (currentUser ? currentUser.userId : 'anonymous');

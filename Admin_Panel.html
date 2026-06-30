@@ -61,12 +61,52 @@
 
             onAuthStateChanged(window.auth, (user) => {
                 if (!user) {
-                    logoutUser();
+                    window.location.href = "index.html";
                 } else {
-                                pullIndicator.innerHTML = '<div class="text-center py-4 text-emerald-600 font-bold flex flex-col items-center justify-center gap-2 bg-emerald-50 shadow-inner"><i class="fa-solid fa-arrow-down animate-bounce text-xl"></i><span>Pull to refresh</span></div>';
-                            }
+                    const loadingScreen = document.getElementById('loading-screen');
+                    if (loadingScreen) loadingScreen.classList.add('hidden');
+                }
+            });
+
+            window.addEventListener('DOMContentLoaded', () => {
+                const container = document.querySelector('.main-content-area') || document.body;
+                let startY = 0;
+                let currentY = 0;
+                let isPulling = false;
+                let pullIndicator = null;
+                const pptrThreshold = 80;
+
+                container.addEventListener('touchstart', (e) => {
+                    if (container.scrollTop === 0) {
+                        startY = e.touches[0].clientY;
+                        isPulling = true;
+                    }
+                }, {passive: true});
+
+                container.addEventListener('touchmove', (e) => {
+                    if (!isPulling) return;
+                    currentY = e.touches[0].clientY;
+                    const diff = currentY - startY;
+
+                    if (diff > 0 && container.scrollTop === 0) {
+                        if (!pullIndicator) {
+                            pullIndicator = document.createElement('div');
+                            pullIndicator.style.height = '0px';
+                            pullIndicator.style.overflow = 'hidden';
+                            pullIndicator.style.transition = 'height 0.2s';
+                            pullIndicator.innerHTML = '<div class="text-center py-4 text-emerald-600 font-bold flex flex-col items-center justify-center gap-2 bg-emerald-50 shadow-inner"><i class="fa-solid fa-arrow-down animate-bounce text-xl"></i><span>Pull to refresh</span></div>';
+                            container.insertBefore(pullIndicator, container.firstChild);
                         }
-                    }, {passive: true});
+                        
+                        let height = Math.min(diff * 0.5, 120);
+                        pullIndicator.style.height = height + 'px';
+                        
+                        if (height >= pptrThreshold) {
+                            pullIndicator.innerHTML = '<div class="text-center py-4 text-emerald-600 font-bold flex flex-col items-center justify-center gap-2 bg-emerald-50 shadow-inner"><i class="fa-solid fa-arrow-down animate-bounce text-xl"></i><span>Pull to refresh</span></div>';
+                        }
+                    }
+                }, {passive: true});
+
 
                     container.addEventListener('touchend', (e) => {
                         if (!isPulling) return;
@@ -106,7 +146,7 @@
                         }
                     });
                 });
-            }
+            } catch (e) { console.error("Firebase init error:", e); }
 
             function setupEventDelegation() {
                 const container = document.getElementById('records-list-container');
@@ -3526,7 +3566,7 @@
                                     level: 'H'
                                 });
                                 const qrBase64 = qr.toDataURL().split(',')[1];
-                                qrFileName = `QR_${baseFilename}.png`;
+                                qrFileName = `QR_${baseFilename}.jpg`;
                                 zip.file(`QR_Codes/${qrFileName}`, qrBase64, {base64: true});
                             } catch(e) { console.error("QR Error", e); }
                         }
@@ -4406,7 +4446,7 @@
                         t.innerHTML = `
                             <div class="p-6 bg-white rounded-3xl system-card flex flex-col items-start w-full max-w-md mx-auto">
                                 <div class="w-full space-y-4">
-                                    <div class="flex gap-4 items-center">
+                                    <div class="flex flex-col items-center justify-center mb-6">
                                         <div class="w-24 h-24 rounded-3xl bg-slate-50 border-2 border-dashed border-emerald-200 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden shrink-0 hover:bg-emerald-50 transition group" onclick="document.getElementById('manage-school-logo').click()">
                                             ${schoolConfig.logo ? `
                                                 <img src="${schoolConfig.logo}" id="manage-logo-preview-img" class="absolute inset-0 w-full h-full object-cover z-10 pointer-events-none">
@@ -4423,12 +4463,7 @@
                                             <span class="text-[9px] font-bold text-slate-400 z-0">LOGO</span>
                                             <input type="file" id="manage-school-logo" accept="image/*" class="hidden" onchange="previewManageSchoolLogo(event)">
                                         </div>
-                                        <div class="flex-1 space-y-4">
-                                            <div>
-                                                <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-qrcode"></i> School Code</label>
-                                                <input type="text" id="manage-school-code" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="e.g. DPS" value="${schoolConfig.code || ''}">
-                                            </div>
-                                        </div>
+                                        
                                     </div>
 
                                     <div>
@@ -7831,13 +7866,13 @@
                         try {
                             if (photoUrl.startsWith('data:image')) {
                                 const base64Data = photoUrl.split(',')[1];
-                                photoFolder.file(`Photo_${baseFileName}.jpg`, base64Data, {base64: true});
+                                photoFolder.file(`${baseFileName}.jpg`, base64Data, {base64: true});
                             } else {
                                 photoUrl = fixDriveImageUrl(photoUrl);
                                 const response = await fetch(photoUrl, { mode: 'cors' });
                                 if (response.ok) {
                                     const blob = await response.blob();
-                                    photoFolder.file(`Photo_${baseFileName}.jpg`, blob);
+                                    photoFolder.file(`${baseFileName}.jpg`, blob);
                                 }
                             }
                         } catch(e) {}
@@ -7856,7 +7891,7 @@
                     try {
                         const qr = new QRious({ value: qrVal, size: 300, level: 'H' });
                         const qrBase64 = qr.toDataURL().split(',')[1];
-                        qrFolder.file(`QR_${baseFileName}.png`, qrBase64, {base64: true});
+                        qrFolder.file(`QR_${baseFileName}.jpg`, qrBase64, {base64: true});
                     } catch(e) {}
                 }
                 
@@ -7998,6 +8033,31 @@
             });
         }
     </script>
+
+    <script>
+    function generateSchoolCode() {
+        const nameEl = document.getElementById('manage-school-name');
+        const codeEl = document.getElementById('manage-school-code');
+        if (nameEl && codeEl) {
+            const val = nameEl.value.trim();
+            if (val) {
+                const words = val.split(/\s+/);
+                let code = '';
+                if (words.length === 1) {
+                    code = val.substring(0, 3).toUpperCase();
+                } else {
+                    words.forEach(w => {
+                        if(w.length > 0 && code.length < 4) code += w[0].toUpperCase();
+                    });
+                }
+                codeEl.value = code;
+            } else {
+                codeEl.value = '';
+            }
+        }
+    }
+    </script>
+    
 </body>
 
 </html>
