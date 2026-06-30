@@ -1,477 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <link rel="icon" type="image/png" href="./fevicon.png">
-    <link rel="apple-touch-icon" href="./idapplogo.png">
-    <title id="page-title">IDentify</title>
-    <!-- External Libraries -->
-    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-        crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
-    <link rel="stylesheet" href="global.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, orderBy, limit, setDoc, onSnapshot, getDoc, runTransaction, enableMultiTabIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, sendPasswordResetEmail, createUserWithEmailAndPassword, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-        import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
-
-        import { firebaseConfig } from "./firebase-env.js";
-
-        try {
-            const app = initializeApp(firebaseConfig);
-            window.db = getFirestore(app);
-            enableMultiTabIndexedDbPersistence(window.db).catch((err) => {
-                if (err.code == 'failed-precondition') {
-                    console.warn("Multiple tabs open, persistence can only be enabled in one tab at a time.");
-                } else if (err.code == 'unimplemented') {
-                    console.warn("Browser does not support persistence");
-                }
-            });
-            window.auth = getAuth(app);
-            window.storage = getStorage(app);
-
-            window.firebaseAPI = {
-                initializeApp, getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, sendPasswordResetEmail, createUserWithEmailAndPassword, signInAnonymously, onAuthStateChanged,
-                db: window.db, auth: window.auth, storage: window.storage, firebaseConfig,
-                collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, orderBy, limit, setDoc, onSnapshot, getDoc, runTransaction,
-                signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, createUserWithEmailAndPassword,
-                getStorage, ref, uploadString, getDownloadURL,
-                firebaseConfig
-            };
-            console.log("Firebase initialized successfully.");
-
-            onAuthStateChanged(window.auth, (user) => {
-                if (!user) {
-                    localStorage.removeItem('student_auth_v1');
-                    window.location.replace('Login_Panel.html?msg=session_expired');
-                } else if (user.email && (user.email.toLowerCase().includes('admin') || user.email.toLowerCase() === 'identify.jvd@gmail.com')) {
-                    window.location.replace('Admin_Panel.html');
-                }
-            });
-        } catch (e) {
-            console.error("Firebase initialization error:", e);
-        }
-    </script>
-
-                            <link rel="manifest" href="manifest.json">
-</head>
-
-<body class="flex flex-col h-screen">
-
-    <div id="initial-splash-screen" class="fixed inset-0 z-[99999] bg-[#f8fafd] flex flex-col items-center justify-center transition-opacity duration-500">
-        <div class="flex flex-col items-center justify-center drop-shadow-2xl -mt-96">
-            <img src="./idapplogo.png" class="w-[180px] h-[180px] object-contain mix-blend-multiply">
-        </div>
-        <!-- 3 Loading Dots -->
-        <div class="absolute bottom-16 flex space-x-3 justify-center items-center">
-            <div class="h-5 w-5 bg-[#05996c] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-            <div class="h-5 w-5 bg-[#05996c] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-            <div class="h-5 w-5 bg-[#05996c] rounded-full animate-bounce"></div>
-        </div>
-    </div>
-
-    <div id="login-overlay" class="fixed inset-0 z-[11000] hidden items-center justify-center bg-[#f0f4f8] p-4 overflow-y-auto">
-        <div
-            class="relative w-full max-w-[340px] rounded-[28px] bg-white shadow-[0_8px_40px_rgba(0,0,0,0.13)] overflow-hidden border border-slate-100 mt-2">
-            
-            <!-- Punch Hole Cutout (Lanyard Slot) -->
-            <div class="absolute top-2.5 left-1/2 -translate-x-1/2 w-12 h-3 bg-[#f0f4f8] rounded-full shadow-[inset_0_2px_5px_rgba(0,0,0,0.08)] flex items-center justify-center z-20 border border-slate-100/50">
-                <div class="w-8 h-1 bg-slate-200/80 rounded-full"></div>
-            </div>
-
-            <div class="px-6 pt-9 pb-7">
-
-                <!-- Icon Badge -->
-                <div class="flex flex-col items-center mb-5">
-                    <div
-                        class="w-[70px] h-[70px] rounded-full border-[3px] border-emerald-500 flex items-center justify-center bg-white shadow-sm mb-3">
-                        <div id="login-logo-container" class="w-[52px] h-[52px] rounded-full bg-emerald-50 flex items-center justify-center overflow-hidden">
-                            <i data-lucide="id-card" class="w-7 h-7 text-emerald-600"></i>
-                        </div>
-                    </div>
-                    <h2 id="login-school-name"
-                        class="text-[17px] font-extrabold text-slate-800 text-center leading-snug">Delhi Public School
-                    </h2>
-                    <p class="mt-1 text-[12px] font-semibold text-emerald-700">ID Card Management Software</p>
-                </div>
-
-                <!-- Fields -->
-                <div class="mt-2">
-                    <!-- Normal Login Fields -->
-                    <div id="login-normal-fields" class="space-y-4">
-                        <div>
-                            <label for="login-user-id"
-                                class="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">
-                                <i data-lucide="mail" class="w-3.5 h-3.5 text-emerald-500"></i> School Email
-                            </label>
-                            <input id="login-user-id" type="email"
-                                class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-medium outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition"
-                                placeholder="Enter School Email">
-                        </div>
-                        <div>
-                            <label
-                                class="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">
-                                <i data-lucide="lock-keyhole" class="w-3.5 h-3.5 text-emerald-500"></i> Password
-                            </label>
-                            <div class="relative">
-                                <input id="login-password" type="password"
-                                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 pr-12 text-sm font-medium outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition"
-                                    placeholder="Enter password">
-                                <button id="login-password-toggle" type="button" onclick="toggleLoginPassword()"
-                                    class="absolute inset-y-0 right-0 flex items-center justify-center px-4 text-slate-400 hover:text-emerald-600 transition"
-                                    aria-label="Show password">
-                                    <i id="login-password-toggle-icon" data-lucide="eye" class="w-5 h-5"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div id="login-error"
-                            class="hidden rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-500">
-                        </div>
-                        <button id="login-submit-btn" type="button" onclick="submitLogin()"
-                            class="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 px-4 py-4 text-[15px] font-extrabold text-white shadow-sm flex items-center justify-center gap-2 transition mt-1">
-                            <i data-lucide="log-in" class="w-5 h-5"></i> Login
-                        </button>
-                        
-                        <div id="forgot-password-container" class="mt-4 text-center hidden">
-                            <button type="button" onclick="showForgotFields(true)" class="text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition">
-                                Forgot Password?
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Forgot Password Fields -->
-                    <div id="login-forgot-fields" class="space-y-4 hidden animate-in fade-in duration-200">
-                        <div id="forgot-inputs-wrapper" class="space-y-4">
-                            <div>
-                                <label
-                                    class="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-1.5">
-                                    <i data-lucide="mail" class="w-3.5 h-3.5 text-emerald-500"></i> Admin Email
-                                </label>
-                                <input id="login-forgot-email" type="email"
-                                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-medium outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition"
-                                    placeholder="Enter Admin Email">
-                            </div>
-                            <button id="forgot-submit-btn" type="button" onclick="submitForgotPassword()"
-                                class="w-full rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 px-4 py-4 text-[15px] font-extrabold text-white shadow-sm flex items-center justify-center gap-2 transition mt-1">
-                                Next <i class="fa-solid fa-arrow-right text-sm"></i>
-                            </button>
-                            
-                            <div class="mt-4 text-center">
-                                <button type="button" onclick="showForgotFields(false)" class="text-sm font-semibold text-slate-500 hover:text-slate-700 transition">
-                                    Back to Login
-                                </button>
-                            </div>
-                        </div>
-                        <div id="forgot-error"
-                            class="hidden rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-500">
-                        </div>
-                        <div id="forgot-success"
-                            class="hidden rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-                        </div>
-                        <div id="forgot-timer-msg" class="hidden text-xs font-bold text-slate-500 text-center mt-2">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Footer -->
-                <div class="mt-5 relative w-full pb-2 flex flex-col items-center justify-center">
-                    <div class="flex items-center gap-1.5">
-                        <i class="fa-solid fa-id-card text-emerald-600 text-[13px]"></i>
-                        <span class="text-[12px] font-black tracking-widest text-emerald-600">IDentify</span>
-                    </div>
-                    <div class="text-[10px] font-bold tracking-widest text-emerald-500 uppercase mt-0.5">By: Javed Ansari</div>
-                    
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="app-container" class="flex flex-col flex-1 overflow-hidden h-full relative">
-        <!-- Premium Mesh Background & Graphics -->
-        <div class="absolute inset-0 pointer-events-none z-0" style="background-image: radial-gradient(rgba(5, 153, 108, 0.06) 1.2px, transparent 1.2px); background-size: 16px 16px; opacity: 0.85;"></div>
-        
-        <!-- Colorful Mesh Spheres -->
-        <div class="absolute top-[-50px] left-[-50px] w-48 h-48 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none z-0"></div>
-        <div class="absolute bottom-[100px] right-[-50px] w-64 h-64 rounded-full bg-blue-300/10 blur-3xl pointer-events-none z-0"></div>
-        
-        <!-- Circular Radar-Style Wireframe Graphic -->
-        <svg class="absolute top-[-30px] right-[-40px] w-48 h-48 opacity-10 text-emerald-700 pointer-events-none z-0" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="0.3">
-            <circle cx="50" cy="50" r="10" />
-            <circle cx="50" cy="50" r="20" />
-            <circle cx="50" cy="50" r="30" />
-            <circle cx="50" cy="50" r="40" />
-            <circle cx="50" cy="50" r="50" />
-            <circle cx="50" cy="50" r="60" />
-            <line x1="0" y1="50" x2="100" y2="50" />
-            <line x1="50" y1="0" x2="50" y2="100" />
-        </svg>
-
-        <!-- Abstract Wave Grid Graphic -->
-        <svg class="absolute bottom-[140px] left-[-40px] w-56 h-32 opacity-[0.08] text-blue-600 pointer-events-none z-0" viewBox="0 0 100 50" fill="none" stroke="currentColor" stroke-width="0.3">
-            <path d="M0,25 C20,10 40,40 60,25 C80,10 100,25 100,25" />
-            <path d="M0,30 C20,15 40,45 60,30 C80,15 100,30 100,30" />
-            <path d="M0,20 C20,5 40,35 60,20 C80,5 100,20 100,20" />
-            <path d="M0,35 C20,20 40,50 60,35 C80,20 100,35 100,35" />
-        </svg>
-
-        <!-- Elegant Sparkles & Floating Nodes -->
-        <div class="absolute top-[80px] left-[30px] opacity-15 text-emerald-600 animate-pulse pointer-events-none z-0"><i class="fa-solid fa-sparkles text-base"></i></div>
-        <div class="absolute top-[180px] right-[40px] opacity-15 text-blue-500 animate-pulse pointer-events-none z-0" style="animation-delay: 1s;"><i class="fa-solid fa-star text-[10px]"></i></div>
-        <div class="absolute bottom-[280px] left-[20px] opacity-10 text-emerald-500 animate-pulse pointer-events-none z-0" style="animation-delay: 2s;"><i class="fa-solid fa-circle-nodes text-xs"></i></div>
-
-
-
-        <div id="records" class="tab-section">
-            <main class="flex flex-col h-full overflow-hidden bg-transparent relative">
-                <header class="home-header px-3 pt-2 pb-1 z-[1000] border-b border-gray-100">
-                    <div id="records-header-standard-db"
-                        class="h-12 rounded-full flex items-center pl-2 pr-2 gap-2 bg-white"
-                        style="box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);">
-                        <button id="profile-btn"
-                            class="w-9 h-9 rounded-full bg-white text-emerald-700 flex items-center justify-center font-bold text-xs active:scale-95 transition-transform overflow-hidden p-0 border-2 border-emerald-600"
-                            onclick="openSchoolConfig()">
-                            <i class="fa-solid fa-school"></i>
-                        </button>
-                        <div id="search-input-container" class="flex-1 min-w-0 relative flex items-center">
-                            <i id="search-icon" class="fa-solid fa-magnifying-glass text-slate-400 ml-2"></i>
-                            <input type="text" id="mainSearch" placeholder="Search students..."
-                                class="bg-transparent border-none outline-none w-full text-sm font-medium ml-2 text-slate-700 placeholder-slate-400 transition-all"
-                                oninput="onSearchInput()">
-                            <h2 id="records-page-info-db"
-                                class="absolute inset-y-0 left-0 right-10 flex items-center text-[16px] font-extrabold text-[#059669] tracking-tight truncate leading-none pt-[1px] bg-white pointer-events-none hidden pl-2">
-                            </h2>
-                        </div>
-                        <div id="bulk-actions-container"
-                            class="hidden items-center gap-1.5 ml-auto pr-1 animate-in fade-in zoom-in duration-200">
-                                <button id="btn-bulk-restore" onclick="bulkBinRestore()"
-                                class="hidden w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center active:scale-90 transition-transform shadow-sm"
-                                title="Restore Selected">
-                                <i class="fa-solid fa-rotate-left text-sm"></i>
-                            </button>
-                            <button id="btn-bulk-delete" onclick="bulkDeleteSelected()"
-                                class="w-9 h-9 rounded-full bg-rose-500 text-white flex items-center justify-center active:scale-90 transition-transform shadow-sm"
-                                title="Delete Selected">
-                                <i class="fa-solid fa-trash-can text-sm"></i>
-                            </button>
-                            <button id="btn-bulk-verify" onclick="bulkVerifySelected()"
-                                class="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center active:scale-90 transition-transform shadow-sm"
-                                title="Verify Selected">
-                                <span class="material-symbols-outlined text-[20px]"
-                                    style="font-variation-settings: 'FILL' 1;">verified</span>
-                            </button>
-                        </div>
-                        <button id="btn-bulk-select-toggle" onclick="handleBulkToggleSelectAll()"
-                            class="hidden h-9 rounded-full bg-violet-900 text-white border border-violet-800 flex items-center justify-center px-3 gap-1 active:scale-95 transition-transform shadow-sm hover:bg-violet-800"
-                            title="Select All / Deselect All">
-                            <span id="bulk-select-count" class="text-sm font-black text-white">0</span>
-                            <i id="bulk-select-icon" class="fa-solid fa-square text-sm text-white"></i>
-                        </button>
-                        <!-- Selection Toggle Button (Replaces Plus when items selected or in Unverified view) -->
-                        <button id="toggle-form-btn" onclick="toggleStudentForm()"
-                            class="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg active:scale-90 transition-all relative">
-                            <i id="toggle-icon" class="fa-solid fa-plus text-sm"></i>
-                        </button>
-                    </div>
-
-                    <div class="mt-1 flex items-center gap-1 overflow-x-auto custom-scroll pb-1 filter-chips-container"
-                        id="class-filter-row">
-                        <!-- Class Selection Dropdown -->
-                        <div class="relative shrink-0">
-                            <button id="filterClassBtn" class="school-filter-btn flex items-center gap-2"
-                                onclick="toggleFilterMenu('class', this)">
-                                <span id="filterClassText" class="filter-class-text-container">All Class</span>
-                            </button>
-                        </div>
-
-
-
-                        <button id="btn-all-data" class="school-filter-btn active shrink-0" style="display: none;"
-                            onclick="setChipFilter('status', 'all')">All Data</button>
-                        <button id="btn-verified" class="school-filter-btn shrink-0 flex items-center gap-1" style="display: none;"
-                            onclick="setChipFilter('status', 'verified')" title="Verified"><span
-                                class="material-symbols-outlined text-[18px]"
-                                style="font-variation-settings: 'FILL' 1;">verified</span></button>
-                        <button id="btn-unverified"
-                            class="school-filter-btn pending-chip shrink-0 flex items-center gap-1" style="display: none;"
-                            onclick="setChipFilter('status', 'unverified')" title="Unverified"><span
-                                class="material-symbols-outlined text-[18px]"
-                                style="font-variation-settings: 'FILL' 1;">unpublished</span></button>
-                        <button id="btn-pending" class="school-filter-btn pending-chip shrink-0 flex items-center gap-1" style="display: none;"
-                            onclick="setChipFilter('status', 'pending')" title="Pending (No Photo)"><span
-                                class="material-symbols-outlined text-[18px]"
-                                style="font-variation-settings: 'FILL' 1;">no_photography</span></button>
-                        <button id="btn-recycle-bin" class="school-filter-btn pending-chip shrink-0 flex items-center gap-1" style="display: none;"
-                            onclick="setChipFilter('status', 'recycleBin')" title="Recycle Bin"><span
-                                class="material-symbols-outlined text-[18px]"
-                                style="font-variation-settings: 'FILL' 1;">delete</span></button>
-
-                        <!-- Sort Button -->
-                        <div class="relative shrink-0 flex items-center ml-auto pl-1 pr-[2px]">
-                            <button id="filterSortBtn"
-                                class="w-8 h-8 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 active:scale-95 transition-all"
-                                onclick="handleSortToggle(event)" title="Sort Data">
-                                <i class="fa-solid fa-clock-rotate-left text-[16px] text-slate-500"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                </header>
-
-                <!-- Records List View -->
-                <div id="records-list-view" class="pt-1 flex-1 flex flex-col min-h-0 overflow-hidden">
-                    <div class="flex-1 overflow-y-auto custom-scroll system-scroll px-4 pt-1 pb-6" ontouchstart="handleHomeTouchStart(event)" ontouchend="handleHomeTouchEnd(event)">
-                        <div id="records-list-container" class="system-card rounded-3xl overflow-hidden">
-                            <!-- Premium Skeleton Loading Animation -->
-                            <div id="skeleton-loader" class="divide-y divide-gray-50 bg-white">
-                                <!-- Skeleton Item 1 -->
-                                <div class="flex items-stretch border-b border-gray-100 last:border-0 h-[72px] animate-pulse">
-                                    <div class="w-16 bg-slate-100/70 flex-shrink-0 flex items-center justify-center border-r border-gray-50 relative overflow-hidden"></div>
-                                    <div class="flex-1 px-4 flex flex-col justify-center gap-2 min-w-0">
-                                        <div class="h-3.5 bg-slate-100 rounded-md w-[45%]"></div>
-                                        <div class="h-2.5 bg-slate-100 rounded-md w-[60%]"></div>
-                                    </div>
-                                    <div class="px-4 flex flex-col items-end justify-center gap-2 min-w-[80px]">
-                                        <div class="h-2.5 bg-slate-100 rounded-md w-8"></div>
-                                        <div class="h-2 bg-slate-100 rounded-md w-12"></div>
-                                    </div>
-                                </div>
-                                <!-- Skeleton Item 2 -->
-                                <div class="flex items-stretch border-b border-gray-100 last:border-0 h-[72px] animate-pulse">
-                                    <div class="w-16 bg-slate-100/70 flex-shrink-0 flex items-center justify-center border-r border-gray-50 relative overflow-hidden"></div>
-                                    <div class="flex-1 px-4 flex flex-col justify-center gap-2 min-w-0">
-                                        <div class="h-3.5 bg-slate-100 rounded-md w-[35%]"></div>
-                                        <div class="h-2.5 bg-slate-100 rounded-md w-[50%]"></div>
-                                    </div>
-                                    <div class="px-4 flex flex-col items-end justify-center gap-2 min-w-[80px]">
-                                        <div class="h-2.5 bg-slate-100 rounded-md w-8"></div>
-                                        <div class="h-2 bg-slate-100 rounded-md w-12"></div>
-                                    </div>
-                                </div>
-                                <!-- Skeleton Item 3 -->
-                                <div class="flex items-stretch border-b border-gray-100 last:border-0 h-[72px] animate-pulse">
-                                    <div class="w-16 bg-slate-100/70 flex-shrink-0 flex items-center justify-center border-r border-gray-50 relative overflow-hidden"></div>
-                                    <div class="flex-1 px-4 flex flex-col justify-center gap-2 min-w-0">
-                                        <div class="h-3.5 bg-slate-100 rounded-md w-[55%]"></div>
-                                        <div class="h-2.5 bg-slate-100 rounded-md w-[40%]"></div>
-                                    </div>
-                                    <div class="px-4 flex flex-col items-end justify-center gap-2 min-w-[80px]">
-                                        <div class="h-2.5 bg-slate-100 rounded-md w-8"></div>
-                                        <div class="h-2 bg-slate-100 rounded-md w-12"></div>
-                                    </div>
-                                </div>
-                                <!-- Skeleton Item 4 -->
-                                <div class="flex items-stretch border-b border-gray-100 last:border-0 h-[72px] animate-pulse">
-                                    <div class="w-16 bg-slate-100/70 flex-shrink-0 flex items-center justify-center border-r border-gray-50 relative overflow-hidden"></div>
-                                    <div class="flex-1 px-4 flex flex-col justify-center gap-2 min-w-0">
-                                        <div class="h-3.5 bg-slate-100 rounded-md w-[40%]"></div>
-                                        <div class="h-2.5 bg-slate-100 rounded-md w-[60%]"></div>
-                                    </div>
-                                    <div class="px-4 flex flex-col items-end justify-center gap-2 min-w-[80px]">
-                                        <div class="h-2.5 bg-slate-100 rounded-md w-8"></div>
-                                        <div class="h-2 bg-slate-100 rounded-md w-12"></div>
-                                    </div>
-                                </div>
-                                <!-- Skeleton Item 5 -->
-                                <div class="flex items-stretch border-b border-gray-100 last:border-0 h-[72px] animate-pulse">
-                                    <div class="w-16 bg-slate-100/70 flex-shrink-0 flex items-center justify-center border-r border-gray-50 relative overflow-hidden"></div>
-                                    <div class="flex-1 px-4 flex flex-col justify-center gap-2 min-w-0">
-                                        <div class="h-3.5 bg-slate-100 rounded-md w-[50%]"></div>
-                                        <div class="h-2.5 bg-slate-100 rounded-md w-[45%]"></div>
-                                    </div>
-                                    <div class="px-4 flex flex-col items-end justify-center gap-2 min-w-[80px]">
-                                        <div class="h-2.5 bg-slate-100 rounded-md w-8"></div>
-                                        <div class="h-2 bg-slate-100 rounded-md w-12"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="inline-student-form" class="hidden" aria-hidden="true">
-                    <input type="hidden" id="edit-id">
-                    <input type="text" id="in-studentName" value="">
-                    <input type="text" id="in-fatherName" value="">
-                    <input type="text" id="in-dob" value="">
-                    <input type="text" id="in-mobile" value="">
-                    <input type="text" id="in-aadhar" value="">
-                    <input type="text" id="in-address" value="">
-                    <select id="in-sclass">
-                        <option value="General">General</option>
-                    </select>
-                    <input type="text" id="in-section" value="" placeholder="Section (Opt)">
-                    <select id="in-gender">
-                        <option value="Other">Other</option>
-                    </select>
-                    <input type="text" id="in-customField1" value="">
-                    <input type="text" id="in-customField2" value="">
-                    <input type="text" id="in-customField3" value="">
-                    <input type="text" id="in-customField4" value="">
-                    <input type="text" id="in-customField5" value="">
-                    <input type="file" id="photo-upload" accept="image/*">
-                    <input type="file" id="photo-capture" accept="image/*" capture="environment">
-                    <button type="button" id="remove-photo-btn" class="hidden"></button>
-                    <div id="photo-upload-label"></div>
-                    <div id="upload-btn-text"></div>
-                    <img id="photo-preview-img" src="" alt="">
-                    <div id="photo-placeholder"></div>
-                    <div id="photo-placeholder-icon"></div>
-                </div>
-
-                <!-- Footer: Precision Mirroring -->
-                <footer class="home-footer px-4 shrink-0">
-                    <div id="footer-pagination" class="w-full flex items-center justify-between gap-2">
-                        <div class="flex items-center shrink-0 gap-1.5">
-                            <i class="fa-solid fa-id-card text-emerald-600 text-[12px]"></i>
-                            <span class="text-[11px] font-black tracking-widest text-emerald-600">IDentify</span>
-                        </div>
-
-                        <div id="footer-pagination-controls" class="flex items-center gap-3">
-                            <button onclick="scrollTableRows(-1)"
-                                class="w-8 h-8 flex items-center justify-center text-emerald-700 active:scale-90 transition">
-                                <i class="fa-solid fa-chevron-left"></i>
-                            </button>
-                            <span id="footer-page-info"
-                                class="text-[11px] font-bold text-emerald-600 uppercase tracking-tighter">Page 1 of
-                                1</span>
-                            <button onclick="scrollTableRows(1)"
-                                class="w-8 h-8 flex items-center justify-center text-emerald-700 active:scale-90 transition">
-                                <i class="fa-solid fa-chevron-right"></i>
-                            </button>
-                        </div>
-
-                        <div id="footer-count-wrapper"
-                            class="text-[11px] font-bold text-emerald-600 min-w-[30px] text-right">
-                            <span id="showing-count">0/0</span>
-                        </div>
-
-                        <div id="footer-notification-wrapper" class="flex-1 text-right pr-1 hidden">
-                        </div>
-                    </div>
-                </footer>
-            </main>
-        </div>
-
-        <script>
-        function sanitizeHTML(str) {
+            function sanitizeHTML(str) {
                 if (str == null) return '';
                 return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
             }
@@ -527,29 +55,6 @@
                 return list;
             }
             let menuAutoHideTimer = null;
-            let recycleBinTimer = null;
-
-            function activateRecycleBinFilter() {
-                closeAllMenus();
-                if (typeof setBlankRecordMode === 'function') setBlankRecordMode('none');
-                const binBtn = document.getElementById('btn-recycle-bin');
-                if (binBtn) {
-                    binBtn.style.display = 'flex';
-                    showToast('Recycle Bin unlocked for 1 minute');
-                    
-                    showTab('records');
-                    setChipFilter('status', 'recycleBin');
-                    
-                    if (recycleBinTimer) clearTimeout(recycleBinTimer);
-                    
-                    recycleBinTimer = setTimeout(() => {
-                        binBtn.style.display = 'none';
-                        if (activeStatusFilter === 'recycleBin') {
-                            setChipFilter('status', 'all');
-                        }
-                    }, 60000);
-                }
-            }
             let currentUser = null;
             const APP_VERSION = 'JVD 1.04.26';
             const MENU_AUTO_HIDE_MS = 4000;
@@ -640,17 +145,6 @@
                 }
             };
 
-            async function persistLocalUnverified() {
-                try {
-                    const unverifiedList = (typeof db !== 'undefined' ? db : []).filter(x => {
-                        const isReturned = (x.isDeleted || String(x.verified).toLowerCase() === 'returned' || String(x.status).toLowerCase() === 'returned' || x.returned === true || String(x.returned).toLowerCase() === 'true');
-                        const isRecVerified = (x.verified === true || String(x.verified).toLowerCase() === 'true' || x.verified === 'Completed') && !isReturned;
-                        return !isRecVerified;
-                    });
-                    await SchoolLocalDB.set('local_unverified', unverifiedList);
-                } catch(e) { console.warn("Failed to persist local unverified records", e); }
-            }
-
             window.addEventListener('online', async () => {
                 const queue = await SchoolLocalDB.getAllSyncQueue();
                 if (queue.length > 0) {
@@ -682,7 +176,7 @@
             let previewRecord = null;
             let isPreviewFromSave = false;
             const AUTO_LOGOUT_MS = 10 * 60 * 1000; // 10 minutes of inactivity
-            let activeStatusFilter = 'all';
+            let activeStatusFilter = 'verified';
             let activeClassFilter = 'all';
 
             // Form Builder State
@@ -719,18 +213,6 @@
                 }
             }
             function serverCallSilent(fn, args, onSuccess, onFailure) {
-                // Block unverified records from being pushed to the server or queued
-                if (fn === 'updateRecord' || fn === 'submitStudentData' || fn === 'addRecord') {
-                    const rec = args[0];
-                    if (rec) {
-                        const isVerified = rec.verified === true || String(rec.verified).toLowerCase() === 'true' || rec.verified === 'Identify' || rec.verified === 'Completed';
-                        if (!isVerified) {
-                            if (onSuccess) onSuccess(rec);
-                            return; // Do NOT hit server and do NOT queue
-                        }
-                    }
-                }
-
                 if (!navigator.onLine && (fn === 'updateRecord' || fn === 'submitStudentData' || fn === 'addRecord' || fn === 'deleteRecord')) {
                     const rec = args[0];
                     if (rec && rec.id) {
@@ -752,7 +234,7 @@
                 });
             }
             async function handleFirebaseCall(fn, args, onSuccess, onFailure) {
-                const { collection, addDoc, getDocs, getDoc, updateDoc, setDoc, deleteDoc, doc, query, orderBy, onSnapshot } = window.firebaseAPI;
+                const { collection, addDoc, getDocs, updateDoc, setDoc, deleteDoc, doc, query, orderBy, onSnapshot } = window.firebaseAPI;
                 try {
                     if (fn === 'getRecords') {
                         if (window._recordsUnsubscribe) {
@@ -939,10 +421,11 @@
                     if (toggleBtn) {
                         toggleBtn.style.display = '';
                         toggleBtn.style.width = '36px';
-                        if (blankRecordMode === 'none') {
-                            toggleBtn.onclick = confirmLogout;
-                            toggleBtn.innerHTML = `<i id="toggle-icon" class="fa-solid fa-right-from-bracket text-sm"></i>`;
-                        } else {
+                            if (blankRecordMode === 'none') {
+                                toggleBtn.onclick = confirmLogout;
+                                toggleBtn.className = 'w-9 h-9 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-xs active:scale-95 transition-transform overflow-hidden p-0 border-2 border-rose-600';
+                                toggleBtn.innerHTML = `<i id="toggle-icon" class="fa-solid fa-right-from-bracket text-sm"></i>`;
+                            } else {
                             toggleBtn.onclick = () => closeStudentForm();
                             toggleBtn.innerHTML = `<i id="toggle-icon" class="fa-solid fa-xmark text-sm"></i>`;
                         }
@@ -1089,78 +572,6 @@
                 highlightRecord(id);
             }
 
-            function triggerDirectPreviewUpload(capture) {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/*';
-                if (capture) input.capture = 'environment';
-                
-                input.onchange = (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    setUploadFieldProgress('Compressing...', 10, true);
-                    compressImage(file, (compFile, dataUrl) => {
-                        photoData = dataUrl;
-                        showPhotoPreview(photoData);
-                        
-                        if (previewRecord) {
-                            previewRecord._isEditingMode = true;
-                            previewRecord.photo = dataUrl;
-                            previewRecord._displayPhotoSrc = dataUrl;
-                            storeRecordInDb(previewRecord);
-                            queueServerDraftSync();
-                            
-                            showToast('Photo Uploaded Successfully!');
-                            renderCurrentRecordsPage();
-                        }
-                    });
-                };
-                input.click();
-            }
-
-            function setupPhotoUpload() {
-                const uploadInput = document.getElementById('photo-upload');
-                const captureInput = document.getElementById('photo-capture');
-                const removeBtn = document.getElementById('remove-photo-btn');
-                if (removeBtn) {
-                   const hasPhoto = !!(photoData || pendingUploadedDocument);
-                   if (!hasPhoto) removeBtn.classList.add('hidden');
-                }
-                if (uploadInput) {
-                    uploadInput.addEventListener('change', (e) => {
-                        handlePhotoFile(e.target.files[0]);
-                        e.target.value = '';
-                    });
-                }
-                if (captureInput) {
-                    captureInput.addEventListener('change', (e) => {
-                        handlePhotoFile(e.target.files[0]);
-                        e.target.value = '';
-                    });
-                }
-            }
-            function removePhoto(e) {
-                if(e) e.stopPropagation();
-                photoData = null;
-                clearPhotoPreview();
-                resetUploadFieldLabel('Upload Student');
-                clearPendingUploadedDocument(true);
-                
-                if (blankRecordMode === 'preview' || blankRecordMode === 'student') {
-                    if (previewRecord) {
-                        previewRecord.photo = '';
-                        previewRecord._displayPhotoSrc = '';
-                        previewRecord._isEditingMode = false;
-                        storeRecordInDb(previewRecord);
-                        queueServerDraftSync();
-                        
-                        if (blankRecordMode === 'preview') {
-                            renderCurrentRecordsPage();
-                        }
-                    }
-                }
-            }
-
             async function submitLogin() {
                 const userId = (document.getElementById('login-user-id').value || '').trim();
                 const password = (document.getElementById('login-password').value || '').trim();
@@ -1201,19 +612,12 @@
                     const user = userCredential.user;
                     
                     if (user.email && (user.email.toLowerCase().includes('admin') || user.email.toLowerCase() === 'identify.jvd@gmail.com')) {
-                        throw new Error("This is an Admin email. Please use the Admin Panel.");
+                        authUser = { userId: 'admin', name: 'Admin', role: 'teacher', viewMode: 'all', email: user.email };
                     } else {
-                        // All other emails are treated as School role in School Panel
-                        authUser = { userId: user.uid, name: (user.email ? user.email.split('@')[0] : 'School User'), role: 'school', email: user.email };
+                        throw new Error("This email does not have Admin access.");
                     }
                     
                     saveAuthUser(authUser);
-                    
-                    // Fire-and-forget activity log
-                    if (authUser && authUser.email) {
-                        logSchoolActivity(authUser.email);
-                    }
-
                     resetAutoLogoutTimer();
                     showLoginOverlay(false);
                     showTab('records');
@@ -1403,21 +807,18 @@
             }
 
             async function saveAllManageSchoolDetails() {
-                const name = document.getElementById('manage-school-name')?.value || '';
-                const code = document.getElementById('manage-school-code')?.value || '';
-                const address = document.getElementById('manage-school-address')?.value || '';
-                const mobile = document.getElementById('manage-school-mobile')?.value || '';
-                const email = document.getElementById('manage-school-email')?.value || '';
-                const contactPerson = document.getElementById('manage-school-contact')?.value || '';
-                const systemAbout = document.getElementById('manage-system-about')?.value || '';
-                const whatsapp = document.getElementById('manage-school-whatsapp')?.value || '';
-                const instagram = document.getElementById('manage-school-instagram')?.value || '';
-                const youtube = document.getElementById('manage-school-youtube')?.value || '';
-                const facebook = document.getElementById('manage-school-facebook')?.value || '';
-                
-                const schoolId = (document.getElementById('new-school-id').value || '').trim();
-                const password = (document.getElementById('new-school-pass').value || '').trim();
-                
+                const name = document.getElementById('manage-school-name')?.value || schoolConfig.name || '';
+                const code = document.getElementById('manage-school-code')?.value || schoolConfig.code || '';
+                const address = document.getElementById('manage-school-address')?.value || schoolConfig.address || '';
+                const contactPerson = document.getElementById('manage-school-contact')?.value || schoolConfig.contactPerson || '';
+                const mobile = document.getElementById('manage-school-mobile')?.value || schoolConfig.mobile || '';
+                const email = document.getElementById('manage-school-email')?.value || schoolConfig.email || '';
+                const whatsapp = document.getElementById('manage-school-whatsapp')?.value || schoolConfig.whatsapp || '';
+                const instagram = document.getElementById('manage-school-instagram')?.value || schoolConfig.instagram || '';
+                const youtube = document.getElementById('manage-school-youtube')?.value || schoolConfig.youtube || '';
+                const facebook = document.getElementById('manage-school-facebook')?.value || schoolConfig.facebook || '';
+                const systemAbout = document.getElementById('manage-system-about')?.value || schoolConfig.systemAbout || schoolConfig.about || '';
+
                 const msgEl = document.getElementById('school-create-msg');
                 const btn = document.getElementById('btn-save-manage-school');
 
@@ -1431,25 +832,16 @@
                     name: name,
                     code: code,
                     address: address,
+                    contactPerson: contactPerson,
                     mobile: mobile,
                     email: email,
-                    contactPerson: contactPerson,
-                    systemAbout: systemAbout,
                     whatsapp: whatsapp,
                     instagram: instagram,
                     youtube: youtube,
                     facebook: facebook,
-                    loginId: schoolId
+                    systemAbout: systemAbout
                 };
-                delete newConfig.loginPassword; // Ensure plain text password is removed securely
-                delete newConfig.loginHash; // Remove old one-way hash if exists
-                
-                if (password) {
-                    newConfig.loginEnc = encryptLocal(password);
-                } else if (schoolConfig.loginEnc) {
-                    newConfig.loginEnc = schoolConfig.loginEnc;
-                }
-                
+
                 if (tempManageSchoolLogo) {
                     newConfig.logo = tempManageSchoolLogo;
                 } else if (tempManageSchoolLogo === '') {
@@ -1458,35 +850,20 @@
                 saveSchoolConfig(newConfig);
                 updateBulkHeader();
 
-                if (schoolId || password) {
-                    if (!schoolId || !password) {
-                        showStatusCard('Notice', 'School Info Saved! But to create login, enter both User ID and Password.', { tone: 'warning', progress: 100, dismissible: true, autoHideMs: 4000 });
-                        return;
-                    }
-                    if (password.length < 6) {
-                        showStatusCard('Notice', 'School Info Saved! But password must be at least 6 characters.', { tone: 'warning', progress: 100, dismissible: true, autoHideMs: 4000 });
-                        return;
-                    }
-
-                    if (btn) {
-                        btn.disabled = true;
-                        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
-                    }
-
-                    setTimeout(() => {
-                        tempManageSchoolLogo = null;
-                        showStatusCard('Success', 'School Details & Local Login Updated Successfully!', { tone: 'success', progress: 100, dismissible: true, autoHideMs: 3000 });
-                        if (btn) {
-                            btn.disabled = false;
-                            btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Details & Access';
-                        }
-                        openSchoolConfig(); // Goes to Settings overlay
-                    }, 500);
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
                 }
 
-                tempManageSchoolLogo = null;
-                showStatusCard('Success', 'School details saved successfully!', { tone: 'success', progress: 100, dismissible: true, autoHideMs: 3000 });
-                openSchoolConfig(); // Redirect to Settings popup
+                setTimeout(() => {
+                    tempManageSchoolLogo = null;
+                    showStatusCard('Success', 'Details saved successfully!', { tone: 'success', progress: 100, dismissible: true, autoHideMs: 3000 });
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Details';
+                    }
+                    setBlankRecordMode('settings');
+                }, 500);
             }
 
             async function submitGoogleLogin() {
@@ -1506,12 +883,6 @@
                     
                     const authUser = { userId: user.email, name: user.displayName, photo: user.photoURL, role: 'school' };
                     saveAuthUser(authUser);
-                    
-                    // Fire-and-forget activity log
-                    if (authUser && authUser.userId) {
-                        logSchoolActivity(authUser.userId);
-                    }
-
                     resetAutoLogoutTimer();
                     showLoginOverlay(false);
                     showTab('records');
@@ -1544,119 +915,6 @@
                     lucide.createIcons();
                 }
             }
-            function focusPassword() {
-                const pwdEl = document.getElementById('login-password');
-                if (pwdEl) pwdEl.focus();
-            }
-
-            async function logSchoolActivity(userEmail) {
-                try {
-                    let locationStr = 'Unknown Location';
-                    try {
-                        const controller = new AbortController();
-                        const id = setTimeout(() => controller.abort(), 2000);
-                        const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
-                        clearTimeout(id);
-                        if (res.ok) {
-                            const data = await res.json();
-                            locationStr = `${data.city || ''}, ${data.region || ''}, ${data.country_name || ''}`.replace(/^, | ,|, $/g, '').trim();
-                        }
-                    } catch(e) {}
-                    
-                    const isMobile = navigator.userAgent.includes('Android') || navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad');
-                    
-                    const payload = {
-                        email: userEmail || 'Unknown',
-                        timestamp: Date.now(),
-                        deviceInfo: isMobile ? 'Mobile' : 'Desktop',
-                        userAgent: navigator.userAgent,
-                        location: locationStr || 'Unknown Location'
-                    };
-                    
-                    if (window.firebaseAPI && window.db) {
-                        const { collection, addDoc } = window.firebaseAPI;
-                        await addDoc(collection(window.db, 'activityLogs'), payload);
-                    }
-                } catch(err) {
-                    console.warn("Failed to log school activity", err);
-                }
-            }
-
-            async function loginWithEmail() {
-                const errorEl = document.getElementById('login-error');
-                const btn = document.getElementById('login-btn');
-                const userIdInput = document.getElementById('login-user-id');
-                const passwordInput = document.getElementById('login-password');
-                const userId = userIdInput ? userIdInput.value : '';
-                const password = passwordInput ? passwordInput.value : '';
-                
-                if (errorEl) errorEl.classList.add('hidden');
-                
-                if (!userId || !password) {
-                    if (errorEl) {
-                        errorEl.innerText = 'Please enter both Email and Password';
-                        errorEl.classList.remove('hidden');
-                    }
-                    return;
-                }
-                
-                if (btn) {
-                    btn.disabled = true;
-                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin w-5 h-5 flex items-center justify-center"></i> <span>Logging in...</span>';
-                }
-                
-                try {
-                    if (!window.schoolConfig) {
-                        try {
-                            await fetchSystemConfigFromFirebase();
-                        } catch (e) {
-                            console.warn("Could not fetch school config from Firebase on login:", e);
-                        }
-                    }
-
-                    let authUser = null;
-                    
-                    const userCredential = await window.firebaseAPI.signInWithEmailAndPassword(window.auth, userId, password);
-                    const user = userCredential.user;
-                    
-                    if (user.email && (user.email.toLowerCase().includes('admin') || user.email.toLowerCase() === 'identify.jvd@gmail.com')) {
-                        throw new Error("This is an Admin email. Please use the Admin Panel.");
-                    } else {
-                        authUser = { userId: user.uid, name: (user.email ? user.email.split('@')[0] : 'School User'), role: 'school', email: user.email };
-                    }
-                    
-                    saveAuthUser(authUser);
-                    
-                    if (authUser && authUser.email) {
-                        logSchoolActivity(authUser.email);
-                    }
-
-                    resetAutoLogoutTimer();
-                    showLoginOverlay(false);
-                    showTab('records');
-                    loadAllData();
-                } catch (error) {
-                    if (errorEl) {
-                        errorEl.innerText = error.message;
-                        errorEl.classList.remove('hidden');
-                    }
-                    if (userId.toLowerCase() === 'admin' || userId.toLowerCase() === 'identify.jvd@gmail.com') {
-                        adminFailedAttempts++;
-                        if (adminFailedAttempts >= 2) {
-                            const forgotContainer = document.getElementById('forgot-password-container');
-                            if (forgotContainer) forgotContainer.classList.remove('hidden');
-                        }
-                    } else {
-                        adminFailedAttempts = 0;
-                    }
-                } finally {
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.innerHTML = 'Login';
-                    }
-                }
-            }
-
             function setupLoginUi() {
                 const versionEl = document.getElementById('login-app-version');
                 const menuVersionEl = document.getElementById('menu-app-version');
@@ -1711,13 +969,6 @@
 
                         if (firebaseUser && savedUser) {
                             currentUser = savedUser;
-                            
-                            // Log activity on session start
-                            if (!sessionStorage.getItem('activity_logged_' + currentUser.userId)) {
-                                logSchoolActivity(currentUser.userId);
-                                sessionStorage.setItem('activity_logged_' + currentUser.userId, 'true');
-                            }
-
                             updateCurrentUserUi();
                             hideSplashScreen();
                             
@@ -1760,7 +1011,6 @@
                 if (typeof setBlankRecordMode === 'function') setBlankRecordMode('none');
                 if (typeof closeSchoolConfig === 'function') closeSchoolConfig();
                 if (typeof closeAllMenus === 'function') closeAllMenus();
-                
                 window.location.replace('Login_Panel.html?msg=' + (isAuto ? 'session_expired' : 'logout'));
             }
 
@@ -1887,57 +1137,6 @@
                 });
             }
 
-            function setupFilterCardLongPress(elementId, filterType, isBin = false) {
-                const el = document.getElementById(elementId);
-                if (!el) return;
-                
-                let lpTimer;
-                let lpTriggered = false;
-                
-                const startLP = (e) => {
-                    if (e.type === 'mousedown' && e.button !== 0) return;
-                    lpTriggered = false;
-                    lpTimer = setTimeout(() => {
-                        lpTriggered = true;
-                        if (navigator.vibrate) navigator.vibrate(50);
-                        
-                        if (isBin) {
-                            openRecycleBin();
-                            setTimeout(() => {
-                                if (!Array.isArray(bin) || bin.length === 0) return;
-                                toggleAllBinSelection();
-                            }, 100);
-                        } else {
-                            showTab('records');
-                            setChipFilter('status', filterType);
-                            setTimeout(() => {
-                                if (selectedRecords.size === 0) {
-                                    bulkToggleSelectAll();
-                                }
-                            }, 100);
-                        }
-                    }, 500);
-                };
-                
-                const cancelLP = () => { if (lpTimer) clearTimeout(lpTimer); };
-                
-                el.addEventListener('mousedown', startLP);
-                el.addEventListener('touchstart', startLP, {passive: true});
-                el.addEventListener('mouseup', (e) => {
-                    cancelLP();
-                    if (lpTriggered) { e.preventDefault(); e.stopPropagation(); }
-                });
-                el.addEventListener('touchend', cancelLP);
-                el.addEventListener('mouseleave', cancelLP);
-                el.addEventListener('touchcancel', cancelLP);
-                el.addEventListener('click', (e) => {
-                    if (lpTriggered) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }
-                }, true);
-            }
-
             function setupEventDelegation() {
                 const container = document.getElementById('records-list-container');
                 if (!container) return;
@@ -1960,13 +1159,6 @@
                     binContainer.addEventListener('touchcancel', handleBinSelectionZoneEvent);
                     binContainer.addEventListener('click', handleBinContainerClick);
                 }
-
-                // Add Filter Card Long Press Support
-                setupFilterCardLongPress('home-btn-unverified', 'unverified', false);
-                setupFilterCardLongPress('home-btn-pending', 'pending', false);
-                setupFilterCardLongPress('btn-unverified', 'unverified', false);
-                setupFilterCardLongPress('btn-pending', 'pending', false);
-                setupFilterCardLongPress('btn-recycle-bin', 'recycleBin', true);
             }
 
         function handleBinSelectionZoneEvent(e) {
@@ -2396,27 +1588,11 @@
                                 mergedDb.push(lRec);
                             }
                         });
-                        SchoolLocalDB.get('local_unverified').then(localUnverified => {
-                            if (localUnverified && Array.isArray(localUnverified)) {
-                                localUnverified.forEach(uRec => {
-                                    if (!mergedDb.some(m => String(m.id) === String(uRec.id) || (m.oldId && String(m.oldId) === String(uRec.id)))) {
-                                        mergedDb.push(uRec);
-                                    }
-                                });
-                            }
-                            db = mergedDb;
-                            demoFallbackLoaded = false;
-                            refreshUiAfterLoad();
-                            if (typeof done === 'function') done();
-                        }).catch(err => {
-                            db = mergedDb;
-                            demoFallbackLoaded = false;
-                            refreshUiAfterLoad();
-                            if (typeof done === 'function') done();
-                        });
-                    } else {
-                        if (typeof done === 'function') done();
+                        db = mergedDb;
+                        demoFallbackLoaded = false;
+                        refreshUiAfterLoad();
                     }
+                    if (typeof done === 'function') done();
                 });
             }
 
@@ -2522,7 +1698,7 @@
             function encryptLocal(str) { return btoa(xorCipher(str)); }
             function decryptLocal(str) { try { return xorCipher(atob(str)); } catch(e) { return ''; } }
 
-            const DEFAULT_CONFIG = { name: 'Delhi Public School', code: 'DPS', about: 'ID Card Management Portal', systemAbout: 'ID Card Management Portal', logo: './idapplogo.png' };
+            const DEFAULT_CONFIG = { name: 'Delhi Public School', code: 'DPS', about: 'ID Card Management Portal', logo: './idapplogo.png' };
             let schoolConfig = loadSchoolConfig();
 
             function loadSchoolConfig() {
@@ -2592,10 +1768,8 @@
                                 localStorage.setItem('identify_fb_std_meta', JSON.stringify(fbData.standardMeta));
                                 if (typeof fb_standard_meta !== 'undefined') fb_standard_meta = fbData.standardMeta;
                             }
-                            if (typeof fb_bootFromStorage === 'function') fb_bootFromStorage();
-                            if (typeof fb_renderForm === 'function') fb_renderForm();
-                            if (typeof generateDynamicFormFields === 'function') generateDynamicFormFields();
-                            if (typeof updateBrandingUI === 'function') updateBrandingUI();
+                                if (typeof fb_renderForm === 'function') fb_renderForm();
+                                if (typeof updateBrandingUI === 'function') updateBrandingUI();
                             }
                         });
                     } catch (fbErr) {
@@ -2624,7 +1798,7 @@
                 nameEls.forEach(id => { const el = document.getElementById(id); if (el) el.innerText = schoolConfig.name; });
                 const codeEl = document.getElementById('config-code'); if (codeEl) codeEl.value = schoolConfig.code;
                 const nameInput = document.getElementById('config-name'); if (nameInput) nameInput.value = schoolConfig.name;
-                const aboutEl = document.getElementById('settings-about-display'); if (aboutEl) aboutEl.innerText = schoolConfig.systemAbout || schoolConfig.about;
+                const aboutEl = document.getElementById('settings-about-display'); if (aboutEl) aboutEl.innerText = (schoolConfig.systemAbout || schoolConfig.about);
                 document.title = "IDentify-" + (schoolConfig.code || "DPS");
 
                 if (schoolConfig.logo) {
@@ -2929,8 +2103,8 @@
                     const isRecVerified = (x.verified === true || String(x.verified).toLowerCase() === 'true' || x.verified === 'Completed') && !isReturned;
                     const hasAppPhoto = (x.docUrl && x.docUrl.length > 10) || (x.photoData && x.photoData.length > 10) || (x.docFileId && String(x.docFileId).length > 5);
                     
-                    if (x.isDeleted === true || String(x.isDeleted).toLowerCase() === 'true') {
-                        return; // skip deleted records in counts
+                    if (false) {
+                        return; // skip unverified in counts
                     }
 
                     totalCount++;
@@ -3148,7 +2322,7 @@
                 filterRow.classList.toggle('hidden', showBlankRecordCard);
                 const isAnyMode = mode !== 'none';
                 
-                if ((mode === 'builder' || mode === 'manage_school' || mode === 'dataInfo') && typeof previousBlankRecordMode !== 'undefined' && previousBlankRecordMode === 'settings') {
+                if ((mode === 'builder' || mode === 'manage_school' || mode === 'edit_about' || mode === 'dataInfo' || mode === 'schoolActivity') && typeof previousBlankRecordMode !== 'undefined' && previousBlankRecordMode === 'settings') {
                     icon.className = 'fa-solid fa-arrow-left';
                 } else {
                     icon.className = isAnyMode ? 'fa-solid fa-xmark' : 'fa-solid fa-plus';
@@ -3156,7 +2330,7 @@
                 
                 const addBtnIcon = document.getElementById('add-btn-icon');
                 if (addBtnIcon) {
-                    if ((mode === 'builder' || mode === 'manage_school' || mode === 'dataInfo') && typeof previousBlankRecordMode !== 'undefined' && previousBlankRecordMode === 'settings') {
+                    if ((mode === 'builder' || mode === 'manage_school' || mode === 'edit_about' || mode === 'dataInfo' || mode === 'schoolActivity') && typeof previousBlankRecordMode !== 'undefined' && previousBlankRecordMode === 'settings') {
                         addBtnIcon.className = 'fa-solid fa-arrow-left text-sm';
                     } else {
                         addBtnIcon.className = isAnyMode ? 'fa-solid fa-xmark text-sm' : 'fa-solid fa-plus text-sm';
@@ -3199,18 +2373,22 @@
                     headerHtml = `<i class="fa-solid fa-school text-[#059669] mr-2.5"></i> Manage School`;
                     labelText = 'Manage School';
                     iconClass = 'fa-solid fa-school text-emerald-600';
+                } else if (mode === 'edit_about') {
+                    headerHtml = `<i class="fa-solid fa-pen-to-square text-[#059669] mr-2.5"></i> Edit System About`;
+                    labelText = 'Edit System About';
+                    iconClass = 'fa-solid fa-pen-to-square text-emerald-600';
+                } else if (mode === 'schoolActivity') {
+                    headerHtml = `<i class="fa-solid fa-clock-rotate-left text-[#059669] mr-2.5"></i> School Activity`;
+                    labelText = 'School Activity';
+                    iconClass = 'fa-solid fa-clock-rotate-left text-[#059669]';
                 } else if (mode === 'dataInfo') {
                     headerHtml = `<i class="fa-solid fa-database text-[#059669] mr-2.5"></i> Data Information`;
                     labelText = 'Data Information';
                     iconClass = 'fa-solid fa-database text-emerald-600';
                 } else if (mode === 'import_export') {
-                    headerHtml = `<i class="fa-solid fa-file-import text-[#059669] mr-2.5"></i> Import Data`;
-                    labelText = 'Import Data';
-                    iconClass = 'fa-solid fa-file-import text-emerald-600';
-                } else if (mode === 'recycleBin') {
-                    headerHtml = `<i class="fa-solid fa-trash-can text-[#059669] mr-2.5"></i> Recycle Bin`;
-                    labelText = 'Recycle Bin';
-                    iconClass = 'fa-solid fa-trash-can text-emerald-600';
+                    headerHtml = `<i class="fa-solid fa-file-export text-[#059669] mr-2.5"></i> Export Data`;
+                    labelText = 'Export Data';
+                    iconClass = 'fa-solid fa-file-export text-emerald-600';
                 } else if (mode === 'newEntry' || mode === 'student') {
                     headerHtml = `<i class="fa-solid fa-file-lines text-[#059669] mr-2.5"></i> Student Information Form`;
                     labelText = 'Student Information Form';
@@ -3253,7 +2431,7 @@
 
             function closeStudentForm() {
                 // Respect settings page navigation stack
-                if ((blankRecordMode === 'builder' || blankRecordMode === 'manage_school' || blankRecordMode === 'dataInfo' || blankRecordMode === 'import_export') && typeof previousBlankRecordMode !== 'undefined' && previousBlankRecordMode === 'settings') {
+                if ((blankRecordMode === 'builder' || blankRecordMode === 'manage_school' || blankRecordMode === 'edit_about' || blankRecordMode === 'dataInfo' || blankRecordMode === 'schoolActivity' || blankRecordMode === 'import_export') && typeof previousBlankRecordMode !== 'undefined' && previousBlankRecordMode === 'settings') {
                     setBlankRecordMode('settings');
                     previousBlankRecordMode = 'none';
                     return;
@@ -3350,9 +2528,12 @@
                 if (icon && icon.classList.contains('fa-magnifying-glass') && forceOpen !== true) {
                     filterRecords();
                     
-                    icon.className = 'fa-solid fa-plus';
+                    icon.className = 'fa-solid fa-right-from-bracket text-white';
                     const btn = document.getElementById('toggle-form-btn');
-                    if (btn) btn.className = 'w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform';
+                    if (btn) {
+                        btn.className = 'w-9 h-9 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform';
+                        btn.onclick = confirmLogout;
+                    }
                     if (typeof dbSearchTimer !== 'undefined' && dbSearchTimer) clearTimeout(dbSearchTimer);
                     
                     const searchInput = document.getElementById('mainSearch');
@@ -3364,7 +2545,7 @@
                 const shouldForce = (forceOpen === true);
 
                 if (!shouldForce && blankRecordMode !== 'none') {
-                    if ((blankRecordMode === 'builder' || blankRecordMode === 'manage_school' || blankRecordMode === 'dataInfo' || blankRecordMode === 'import_export') && typeof previousBlankRecordMode !== 'undefined' && previousBlankRecordMode === 'settings') {
+                    if ((blankRecordMode === 'builder' || blankRecordMode === 'manage_school' || blankRecordMode === 'edit_about' || blankRecordMode === 'dataInfo' || blankRecordMode === 'schoolActivity' || blankRecordMode === 'import_export') && typeof previousBlankRecordMode !== 'undefined' && previousBlankRecordMode === 'settings') {
                         setBlankRecordMode('settings');
                         previousBlankRecordMode = 'none';
                         return;
@@ -3450,20 +2631,25 @@
                 const formOpen = !!wrapper && !wrapper.classList.contains('hidden');
                 if (formOpen || blankRecordMode !== 'none') return;
 
-                if (search.value.trim().length > 0) {
+                    if (search.value.trim().length > 0) {
                     icon.className = 'fa-solid fa-magnifying-glass';
                     btn.className = 'w-9 h-9 rounded-full bg-emerald-700 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform';
-                    
+                    btn.onclick = () => toggleStudentForm();
+
                     if (dbSearchTimer) clearTimeout(dbSearchTimer);
                     dbSearchTimer = setTimeout(() => {
-                        icon.className = 'fa-solid fa-plus';
-                        btn.className = 'w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform';
-                    }, 12000);
+                        icon.className = 'fa-solid fa-right-from-bracket text-white';
+                        btn.className = 'w-9 h-9 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform';
+                        btn.onclick = confirmLogout;
+                    }, 7000);
                 } else {
-                    icon.className = 'fa-solid fa-plus';
-                    btn.className = 'w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform';
+                    icon.className = 'fa-solid fa-right-from-bracket text-white';
+                    btn.className = 'w-9 h-9 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform';
+                    btn.onclick = confirmLogout;
                     if (dbSearchTimer) clearTimeout(dbSearchTimer);
-                    filterRecords();
+                    
+                    // Automatically filter when user clears the search box
+                    filterDebounceTimer = setTimeout(() => { filterRecords(); }, 300);
                 }
             }
 
@@ -3614,7 +2800,7 @@
                     return {
                         'Sn': (() => {
                             const isRecVerified = (r.verified === true || String(r.verified).toLowerCase() === 'true' || r.verified === 'Completed');
-                            const si = (schoolConfig.name || "DPS").trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase() || "DPS";
+                            const si = (schoolConfig.code || "DPS").trim().toUpperCase() || "DPS";
                             if (isRecVerified) {
                                 const snVal = (r.sn && Number(r.sn) < 1000000000) ? r.sn : (index + 1);
                                 const year = new Date(r.createdAt || Date.now()).getFullYear().toString().slice(-2);
@@ -3730,7 +2916,7 @@
                     binLpDidTrigger = false;
                     return;
                 }
-                permDeleteRecordFromBin(id);
+                permDelete(id);
             }
 
             function toggleBinSelection(id) {
@@ -3738,7 +2924,6 @@
                 if (binSelectedRecords.has(sid)) binSelectedRecords.delete(sid);
                 else binSelectedRecords.add(sid);
                 renderRecycleBin();
-                updateBulkHeader();
             }
 
             function toggleAllBinSelection() {
@@ -3748,7 +2933,6 @@
                     bin.forEach(x => binSelectedRecords.add(String(x.id)));
                 }
                 renderRecycleBin();
-                updateBulkHeader();
             }
 
             function bulkBinRestore() {
@@ -3772,7 +2956,6 @@
                     bin = db.filter(r => r.isDeleted === true || String(r.isDeleted).toLowerCase() === 'true');
                     renderRecycleBin();
                     filterRecords();
-                    updateBulkHeader();
                 });
             }
 
@@ -3783,7 +2966,7 @@
                 ids.forEach(id => {
                     db = db.filter(r => normalizeRecordId(r.id) !== normalizeRecordId(id));
                     try { if (window.idbDelete) idbDelete(IDB_STORE_RECORDS, id).catch(()=>{}); } catch(e){}
-                    serverCallSilent('permanentDelete', [id]);
+                    serverCallSilent('permDelete', [id]);
                     count++;
                 });
                 showToast(count + ' records permanently deleted');
@@ -3791,7 +2974,6 @@
                 bin = db.filter(r => r.isDeleted === true || String(r.isDeleted).toLowerCase() === 'true');
                 renderRecycleBin();
                 filterRecords();
-                updateBulkHeader();
             }
 
             function renderRecycleBin() {
@@ -3799,10 +2981,6 @@
                 if (!container) return;
                 container.innerHTML = '';
                 
-                const filterRow = document.getElementById('class-filter-row');
-                if (filterRow) {
-                    filterRow.classList.remove('hidden');
-                }
                 if (bin.length === 0) {
                     container.innerHTML = `
                         <div class="flex flex-col items-center justify-center py-12 text-slate-400">
@@ -3812,19 +2990,32 @@
                         </div>
                     `;
                 } else {
-                    bin.forEach((x, idx) => {
+                    if (binSelectedRecords.size > 0) {
+                        container.innerHTML += `
+                            <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-emerald-50 border-b border-emerald-100 shadow-sm">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-[18px] h-[18px] rounded-md border-2 border-emerald-600 bg-emerald-600 flex items-center justify-center cursor-pointer transition-all" onclick="toggleAllBinSelection()">
+                                        <i class="fa-solid ${binSelectedRecords.size === bin.length ? 'fa-check text-[10px] text-white' : 'fa-minus text-[10px] text-white'}"></i>
+                                    </div>
+                                    <span class="font-bold text-[14px] text-emerald-800">${binSelectedRecords.size} Selected</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="bulkBinRestore()" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[13px] font-bold shadow-sm hover:bg-emerald-700 transition-all flex items-center gap-1.5"><i class="fa-solid fa-rotate-left"></i> Restore</button>
+                                    <button onclick="bulkBinDelete()" class="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-[13px] font-bold shadow-sm hover:bg-rose-600 transition-all flex items-center gap-1.5"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    bin.forEach(x => {
                         const deletedDate = x.deletedAt ? new Date(x.deletedAt).toLocaleDateString() : 'Unknown';
                         const initial = (x.studentName || 'S').charAt(0).toUpperCase();
                         const photoSrc = fixDriveImageUrl(x.docUrl || x.photoData || '');
                         const hasDoc = x.docUrl || x.photoData;
                         const isRecVerified = x.verified === true || String(x.verified).toLowerCase() === 'true';
-                        const rowClasses = ['flex', 'items-stretch', 'border-b', 'border-gray-100', 'h-[72px]', 'transition', 'cursor-pointer', 'hover:bg-slate-50/50', 'active:bg-emerald-50/40', 'bin-selection-zone', 'select-none', 'overflow-hidden'];
-                        if (idx === 0) rowClasses.push('rounded-t-3xl');
-                        if (idx === bin.length - 1) rowClasses.push('rounded-b-3xl', 'last:border-0');
-                        if (idx !== bin.length - 1) rowClasses.push('last:border-0');
                         
                         container.innerHTML += `
-                            <div class="${rowClasses.join(' ')}" style="-webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: pan-y;" data-id="${escapeInlineId(x.id)}" oncontextmenu="event.preventDefault(); triggerBinSelection('${escapeInlineId(x.id)}'); return false;" ${binSelectedRecords.size > 0 ? `onclick="toggleBinSelection('${escapeInlineId(x.id)}')"` : ''}>
+                            <div class="flex items-stretch border-b border-gray-100 last:border-0 h-[72px] transition cursor-pointer hover:bg-slate-50/50 active:bg-emerald-50/40 bin-selection-zone select-none" style="-webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: pan-y;" data-id="${escapeInlineId(x.id)}" oncontextmenu="event.preventDefault(); triggerBinSelection('${escapeInlineId(x.id)}'); return false;" ${binSelectedRecords.size > 0 ? `onclick="toggleBinSelection('${escapeInlineId(x.id)}')"` : ''}>
                                 <div class="flex flex-1 items-stretch min-w-0">
                                     <div class="w-16 bg-[var(--accent-soft)] flex-shrink-0 flex items-center justify-center border-r border-gray-50 relative overflow-hidden">
                                         ${(photoSrc && photoSrc.length > 8) ? `<img src="${photoSrc}" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="text-2xl font-black text-emerald-600/20" style="display:none">${initial}</span>` : `<span class="text-2xl font-black text-emerald-600/20">${initial}</span>`}
@@ -3860,25 +3051,11 @@
             }
 
             function openRecycleBin() {
-                setBlankRecordMode('recycleBin');
-                bin = db.filter(r => r.isDeleted === true || String(r.isDeleted).toLowerCase() === 'true');
-                if (bin.length === 0) {
-                    const dummy1 = { id: 'dummy-1', studentName: 'Rahul Kumar', sclass: '10th A', isDeleted: true, deletedAt: new Date().toISOString() };
-                    const dummy2 = { id: 'dummy-2', studentName: 'Priya Sharma', sclass: '9th B', isDeleted: true, deletedAt: new Date(Date.now() - 86400000).toISOString() };
-                    db.push(dummy1, dummy2);
-                    bin = [dummy1, dummy2];
-                }
                 renderRecycleBin();
-            }
-
-            function openDevPhoto() {
-                window.open('Adminphoto .jpeg', '_blank');
-            }
-
-            function openDeveloperProfile(event) {
-                if (event) event.preventDefault();
-                const profileUrl = 'https://www.instagram.com/i_am.javed_?igsh=MW9nOXhqb3MwNzFvZA==';
-                window.open(profileUrl, '_blank');
+                serverCall('getBin', [], (rows) => {
+                    bin = rows || [];
+                    renderRecycleBin();
+                });
             }
 
             function updateBinBadge() {
@@ -3926,17 +3103,17 @@
             }
 
             function deleteRow(id) {
-                showModal('confirm', 'Delete Record?', 'Move this record to Recycle Bin?', () => {
+                showModal('confirm', 'Delete Record?', 'Permanently delete this record?', () => {
                     const deleted = findRecordById(db, id);
                     if (deleted) {
                         addActivity('DELETE', deleted);
-                        deleted.isDeleted = true;
-                        deleted.deletedAt = new Date().toISOString();
-                        storeRecordInDb(deleted);
-                        try { if (window.idbPut) idbPut(IDB_STORE_RECORDS, deleted).catch(()=>{}); } catch(e){}
-                        serverCallSilent('updateRecord', [deleted], ()=>{}, ()=>{});
-                        showToast('Record moved to Recycle Bin');
-                        renderCurrentRecordsPage();
+                        registerLocalDeletion(id);
+                        db = db.filter(r => normalizeRecordId(r.id) !== normalizeRecordId(id));
+                    if (typeof window.queueServerDraftSync === 'function') window.queueServerDraftSync();
+                        try { if (window.idbDelete) idbDelete(IDB_STORE_RECORDS, id).catch(()=>{}); } catch(e){}
+                        serverCallSilent('deleteRecord', [id], ()=>{}, ()=>{});
+                        showToast('Record Deleted');
+                        renderHomeAnalysis();
                         filterRecords();
                     } else {
                         showModal('error', 'Failed', 'Record not found.');
@@ -3956,11 +3133,18 @@
                     `;
                     document.body.appendChild(overlay);
 
-                    serverCallSilent('deleteAllRecords', [], () => {
+                    serverCallSilent('deleteAllRecords', [], async () => {
                         db = [];
                         try { localStorage.removeItem('deleted_record_ids'); } catch(e){}
                         
                         try { if (window.idbClear) idbClear(IDB_STORE_RECORDS).catch(()=>{}); } catch(e){}
+                        
+                        // Send cross-device wipe signal
+                        try {
+                            const sysDoc = window.firebaseAPI.doc(window.db, "system", "schoolConfig");
+                            await window.firebaseAPI.updateDoc(sysDoc, { lastWipeTimestamp: Date.now() });
+                        } catch(e) { console.warn('Could not broadcast wipe signal', e); }
+
                         document.body.removeChild(overlay);
                         showToast('All System Data Deleted Successfully');
                         renderHomeAnalysis();
@@ -3971,46 +3155,6 @@
                         showModal('error', 'Error Deleting Data', 'An error occurred while deleting data: ' + (err.message || 'Unknown error'));
                     });
                 }, 'Delete All');
-            }
-
-            function restoreRecordFromBin(id) {
-                const item = findRecordById(db, id);
-                if (!item) {
-                    showModal('error', 'Failed', 'Record not found in bin.');
-                    return;
-                }
-                
-                item.isDeleted = false;
-                item.isRestored = true;
-                item.deletedAt = null;
-                storeRecordInDb(item);
-                try { if (window.idbPut) idbPut(IDB_STORE_RECORDS, item).catch(()=>{}); } catch(e){}
-                serverCallSilent('restoreRecord', [id], ()=>{}, ()=>{});
-                
-                addActivity('RESTORE', item);
-                showToast('Record Restored Successfully');
-                bin = db.filter(r => r.isDeleted === true || String(r.isDeleted).toLowerCase() === 'true');
-                renderRecycleBin();
-                renderCurrentRecordsPage();
-            }
-
-            function permDeleteRecordFromBin(id) {
-                                    const item = findRecordById(db, id);
-                    if (!item) {
-                        showModal('error', 'Failed', 'Record not found in bin.');
-                        return;
-                    }
-                    
-                    db = db.filter(r => normalizeRecordId(r.id) !== normalizeRecordId(id));
-                    if (typeof window.queueServerDraftSync === 'function') window.queueServerDraftSync();
-                    try { if (window.idbDelete) idbDelete(IDB_STORE_RECORDS, id).catch(()=>{}); } catch(e){}
-                    serverCallSilent('permanentDelete', [id], ()=>{}, ()=>{});
-                    
-                    addActivity('PERM_DELETE', item);
-                    showToast('Record Permanently Deleted');
-                    bin = db.filter(r => r.isDeleted === true || String(r.isDeleted).toLowerCase() === 'true');
-                    renderRecycleBin();
-                    filterRecords();
             }
 
             function restoreRecord(id) {
@@ -4042,13 +3186,14 @@
             }
 
             function permDelete(id) {
+                if (!confirm('Permanently Delete?')) return;
                 const item = findRecordById(bin, id);
                 if (item) {
                     db = db.filter(r => normalizeRecordId(r.id) !== normalizeRecordId(id));
                     try { if (window.idbDelete) idbDelete(IDB_STORE_RECORDS, id).catch(()=>{}); } catch(e){}
                     addActivity('PERM_DELETE', item);
                 }
-                serverCallSilent('permanentDelete', [id], ()=>{}, ()=>{});
+                serverCallSilent('permDelete', [id], ()=>{}, ()=>{});
                 showToast('Permanently Deleted');
                 bin = db.filter(r => r.isDeleted === true || String(r.isDeleted).toLowerCase() === 'true');
                 renderRecycleBin();
@@ -4582,7 +3727,6 @@
                     resetUploadFieldLabel('Saved âœ…');
                     pendingUploadedDocument = null;
                     queueServerDraftSync();
-                    renderCurrentRecordsPage();
                 });
             }
             function triggerPhotoUpload() {
@@ -4620,11 +3764,8 @@
             }
             function handleFrameClick(e) {
                 if (photoData || pendingUploadedDocument) return;
-                if (typeof activeStatusFilter !== 'undefined' && activeStatusFilter === 'pending' && blankRecordMode === 'preview') {
-                    triggerDirectPreviewUpload(false);
-                } else {
-                    document.getElementById('photo-upload').click();
-                }
+                // If no photo, open upload
+                document.getElementById('photo-upload').click();
             }
             function setupPhotoUpload() {
                 const uploadInput = document.getElementById('photo-upload');
@@ -4665,7 +3806,6 @@
 
                 queueDraftSave('Document');
                 queueServerDraftAutosave();
-                renderCurrentRecordsPage();
             }
             function showStatusCard(title, message, options = {}) {
                 const { progress = 22, tone = 'working', dismissible = false, autoHideMs = 0 } = options;
@@ -4815,7 +3955,12 @@
                     // Calculate Local SN if missing
                     let nextSn = existing ? existing.sn : null;
                     if (!nextSn) {
-                        nextSn = Date.now();
+                        let maxSn = 0;
+                        db.forEach(r => {
+                            const val = parseInt(r.sn, 10);
+                            if (!isNaN(val) && val > maxSn) maxSn = val;
+                        });
+                        nextSn = maxSn + 1;
                     }
 
                     // Check duplicate record locally (Student Name, Father Name, Class)
@@ -4838,7 +3983,7 @@
                         isSavingRecord = false;
                         showModal('confirm', 
                             'Duplicate Entry Found!', 
-                            `An existing record was found with Student Name: <span class="text-slate-900 font-bold text-[15px]">"${n}"</span>, Father Name: <span class="text-slate-900 font-bold text-[15px]">"${fatherVal}"</span>, and Class: <span class="text-slate-900 font-bold text-[15px]">"${cl}"</span>.<br><br>Would you like to open the existing record or proceed to create a new one?`, 
+                            `An existing record was found with Student Name: <span class="text-slate-900 font-bold text-[15px]">"${n}"</span>, Father Name: <span class="text-slate-900 font-bold text-[15px]">"${fatherVal}"</span>, and Class: <span class="text-slate-900 font-bold text-[15px]">"${cl}"</span> (Record ID: <span class="text-slate-900 font-bold text-[15px]">${duplicate.id}</span>).<br><br>Would you like to open the existing record or proceed to create a new one?`, 
                             () => {
                                 proceedSave.bypassDuplicateCheck = true;
                                 proceedSave();
@@ -4846,11 +3991,7 @@
                             'Create New'
                         );
                         
-                        // Show close icon at top right
-                        const closeIcon = document.getElementById('modal-close-icon');
-                        if (closeIcon) closeIcon.classList.remove('hidden');
-
-                        // Customize modal actions to support "Open Existing", "Create New"
+                        // Customize modal actions to support "Open Existing", "Create New" and "Cancel"
                         const actions = document.getElementById('modal-actions');
                         if (actions) {
                             actions.innerHTML = `
@@ -4859,6 +4000,7 @@
                                         <button id="modal-load-old-btn" class="flex-1 py-3 bg-emerald-500 text-white rounded-[18px] font-bold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm"><i class="fa-solid fa-folder-open text-xs"></i> Open Existing</button>
                                         <button id="modal-confirm-btn" class="flex-1 py-3 bg-amber-500 text-white rounded-[18px] font-bold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm"><i class="fa-solid fa-plus text-xs"></i> Create New</button>
                                     </div>
+                                    <button onclick="closeModal()" class="w-full py-3 bg-slate-200 text-slate-800 rounded-[18px] font-bold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm"><i class="fa-solid fa-xmark text-xs"></i> Cancel</button>
                                 </div>
                             `;
                             
@@ -4900,7 +4042,7 @@
                     }
 
                     const rec = {
-                        sn: nextSn,
+                        sn: existing ? existing.sn : 0,
                         id: finalId,
                         oldId: oldId, // Send old ID to server so it can replace the row
                         sclass: cl, gender: g, studentName: n,
@@ -4922,7 +4064,7 @@
                         verified: (existing && (String(existing.verified).toLowerCase() === 'returned' || existing.returned === true || String(existing.returned).toLowerCase() === 'true' || String(existing.status).toLowerCase() === 'returned')) ? false : !!(existing && existing.verified && String(existing.verified).toLowerCase() !== 'false'),
                         returned: false,
                         isRestored: false,
-                        status: (existing && existing.verified && String(existing.verified).toLowerCase() !== 'false' && !(String(existing.verified).toLowerCase() === 'returned' || existing.returned === true || String(existing.returned).toLowerCase() === 'true' || String(existing.status).toLowerCase() === 'returned')) ? existing.status : (hasPendingOrSavedDoc ? 'unverified' : 'pending'),
+                        status: (existing && (String(existing.verified).toLowerCase() === 'returned' || existing.returned === true || String(existing.returned).toLowerCase() === 'true' || String(existing.status).toLowerCase() === 'returned')) ? (hasPendingOrSavedDoc ? 'unverified' : 'pending') : (existing ? existing.status : (hasPendingOrSavedDoc ? 'unverified' : 'pending')),
                         _serverSaved: existing ? !!existing._serverSaved : false,
                         // Preserved metadata fields
                         timestamp: existing ? (existing.timestamp || getFormattedTimestamp(nowTs)) : getFormattedTimestamp(nowTs),
@@ -4951,39 +4093,62 @@
                         toggleSaveLoading(false);
                         addActivity(eid ? 'UPDATE' : 'ADD', rec);
                         if (!eid) clearDraft();
-                        const existingInDb = db.find(r => String(r.id) === String(rec.id));
-                        if (existingInDb) {
-                            rec._pending = existingInDb._pending;
-                            rec._syncStatus = existingInDb._syncStatus;
-                            rec._serverSaved = existingInDb._serverSaved;
-                        }
                         storeRecordInDb(rec);
                         renderHomeAnalysis();
                         filterRecords();
-                        if (eid) {
-                            showModal('success', 'Data Updated Successfully', '', null, 'Yes, Delete', `${(n || '').trim()}'s Data`);
-                        }
+                        const isVerified = rec && rec.verified && String(rec.verified).toLowerCase() !== 'false';
+                        const modalTitle = eid ? 'Data Updated Successfully' : (isVerified ? 'Verified & Saved Successfully' : 'Saved Successfully');
+                        showModal('success', modalTitle, '', null, 'Yes, Delete', `${(n || '').trim()}'s Data`);
                         setSyncStatus('');
                         if (blankRecordMode === 'preview') renderCurrentRecordsPage();
                     };
 
-                    isPreviewFromSave = !eid;
-                    const _immediatePhotoSrc = _getPreviewPhotoSrc();
-                    previewRecord = { ...rec, _displayPhotoSrc: _immediatePhotoSrc, _isUnsaved: !eid, _eid: eid };
-                    
-                    if (eid) {
-                        try { if (window.idbPut) idbPut(IDB_STORE_RECORDS, previewRecord).catch(()=>{}); } catch(e){}
-                        serverCallSilent('updateRecord', [previewRecord], () => {});
+                    const saveToSheet = () => {
+                        const localRec = { ...rec };
+                        localRec.createdAt = localRec.createdAt || Date.now();
+                        localRec.updatedAt = Date.now();
+                        localRec._pending = true;
+                        localRec._syncStatus = 'pending';
+                        db = [localRec, ...db.filter(x => x.id !== localRec.id)];
+                        
+                        // Persist to IndexedDB as well for robust offline storage (records + image blob)
+                        try {
+                            idbPut(IDB_STORE_RECORDS, { ...localRec }).catch(() => { });
+                            if (photoData && photoData.startsWith('data:image')) {
+                                const blob = dataUrlToBlob(photoData);
+                                if (blob) {
+                                    const attachId = `${localRec.id}::photo`;
+                                    idbPut(IDB_STORE_ATTACH, { id: attachId, blob: blob, savedAt: Date.now() }).catch(() => { });
+                                }
+                            }
+                        } catch (e) { console.warn('IDB persist failed', e); }
+                        
+                        // Push to Firebase instantly
+                        serverCallSilent('updateRecord', [localRec], () => {
+                            const updatedSource = db.find(r => r.id === localRec.id);
+                            if (updatedSource) {
+                                updatedSource._serverSaved = true;
+                                updatedSource._syncStatus = 'synced';
+                                renderCurrentRecordsPage();
+                            }
+                        });
+                        
                         finalizeSave();
+                    };
+
+                    isPreviewFromSave = !eid;
+                    isSavingRecord = false;
+                    toggleSaveLoading(false);
+                    const _immediatePhotoSrc = _getPreviewPhotoSrc();
+                    previewRecord = { ...rec, _displayPhotoSrc: _immediatePhotoSrc };
+                    if (eid) {
                         closeStudentForm();
                     } else {
-                        isSavingRecord = false;
-                        toggleSaveLoading(false);
                         setBlankRecordMode('preview');
                     }
 
-                    // Data is no longer saved locally or remotely here for add mode.
-                    // It will be saved when "Save & New" or "Verify" is clicked on the preview card.
+                    // Direct local save, skip Drive upload until manual sync
+                    saveToSheet();
                 } catch (error) {
                     console.error('Save error:', error);
                     isSavingRecord = false;
@@ -5028,42 +4193,23 @@
                 const toggleIcon = document.getElementById('toggle-icon');
                 const badge = document.getElementById('selected-count-badge');
 
-                const isRecycleBinMode = activeStatusFilter === 'recycleBin';
-                const count = isRecycleBinMode ? binSelectedRecords.size : selectedRecords.size;
-                const canShowBulkActions = count > 0 && (isRecycleBinMode || activeStatusFilter === 'unverified' || activeStatusFilter === 'pending' || (currentUser && currentUser.userId === 'admin' && (activeStatusFilter === 'verified' || activeStatusFilter === 'all')));
-                const filterRow = document.getElementById('class-filter-row');
-                if (filterRow && isRecycleBinMode) {
-                    filterRow.classList.remove('hidden');
-                }
+                const count = selectedRecords.size;
 
-                const bulkSelectToggle = document.getElementById('btn-bulk-select-toggle');
-                const bulkSelectCount = document.getElementById('bulk-select-count');
-                const bulkSelectIcon = document.getElementById('bulk-select-icon');
-
-                if (canShowBulkActions) {
+                if (count > 0 && (activeStatusFilter === 'recycleBin' || activeStatusFilter === 'unverified' || activeStatusFilter === 'pending' || (currentUser && currentUser.userId === 'admin' && (activeStatusFilter === 'verified' || activeStatusFilter === 'all')))) {
                     if (bulkContainer) bulkContainer.classList.remove('hidden');
                     if (bulkContainer) bulkContainer.classList.add('flex');
-                    if (bulkSelectToggle) bulkSelectToggle.classList.remove('hidden');
-                    if (bulkSelectCount) bulkSelectCount.innerText = count;
-                    if (bulkSelectIcon) bulkSelectIcon.className = `fa-solid ${count === (isRecycleBinMode ? bin.length : currentRenderedRecords.length) ? 'fa-square-check' : 'fa-square'} text-sm text-white`;
-                    if (bulkSelectToggle) bulkSelectToggle.onclick = isRecycleBinMode ? toggleAllBinSelection : bulkToggleSelectAll;
-
+                    
                     const verifyBtn = document.getElementById('btn-bulk-verify');
-                    const restoreBtn = document.getElementById('btn-bulk-restore');
-                    const deleteBtn = document.getElementById('btn-bulk-delete');
-                    if (restoreBtn) {
-                        restoreBtn.classList.toggle('hidden', !isRecycleBinMode);
-                        restoreBtn.onclick = bulkBinRestore;
-                    }
+                    const identifyBtn = document.getElementById('btn-bulk-identify');
                     if (verifyBtn) {
-                        if (isRecycleBinMode || activeStatusFilter === 'pending' || activeStatusFilter === 'verified' || activeStatusFilter === 'all') {
+                        if (activeStatusFilter === 'pending' || activeStatusFilter === 'verified' || activeStatusFilter === 'all') {
                             verifyBtn.classList.add('hidden');
                         } else {
                             verifyBtn.classList.remove('hidden');
-                            verifyBtn.onclick = bulkVerifySelected;
                         }
                     }
                     const exportBtn = document.getElementById('btn-bulk-export');
+                    const deleteBtn = document.getElementById('btn-bulk-delete');
                     
                     if (exportBtn) {
                         if (currentUser && currentUser.userId === 'admin' && activeStatusFilter === 'verified') {
@@ -5072,41 +4218,49 @@
                             exportBtn.classList.add('hidden');
                         }
                     }
+                    
+                    const downloadJpgBtn = document.getElementById('btn-bulk-download-jpg');
+                    if (downloadJpgBtn) {
+                        if (currentUser && currentUser.userId === 'admin' && activeStatusFilter === 'verified') {
+                            downloadJpgBtn.classList.remove('hidden');
+                        } else {
+                            downloadJpgBtn.classList.add('hidden');
+                        }
+                    }
                     if (deleteBtn) {
-                        if (isRecycleBinMode || (currentUser && currentUser.userId === 'admin') || activeStatusFilter === 'unverified' || activeStatusFilter === 'pending') {
+                        if ((currentUser && currentUser.userId === 'admin') || activeStatusFilter === 'unverified') {
                             deleteBtn.classList.remove('hidden');
-                            deleteBtn.onclick = isRecycleBinMode ? bulkBinDelete : bulkDeleteSelected;
                         } else {
                             deleteBtn.classList.add('hidden');
                         }
                     }
 
+                    // Re-purpose the main button as Select All/Unselect All toggle WITH count
                     if (toggleBtn) {
-                        toggleBtn.style.display = '';
-                        toggleBtn.style.width = '36px';
-                        toggleBtn.onclick = resetBulkSelection;
-                        toggleBtn.innerHTML = `<i id="toggle-icon" class="fa-solid fa-xmark text-sm"></i>`;
-                        toggleBtn.classList.remove('bg-emerald-600', 'bg-rose-500');
-                        toggleBtn.classList.add((activeStatusFilter === 'unverified' || activeStatusFilter === 'pending' || activeStatusFilter === 'recycleBin') ? 'bg-rose-500' : 'bg-emerald-600');
+                        const visibleUnverified = currentRenderedRecords; // Already filtered by filterRecords()
+                        const isAllSelected = (count > 0 && count === visibleUnverified.length);
+
+                        toggleBtn.style.display = ''; // Ensure it is shown for selection
+                        toggleBtn.style.width = '72px';
+                        toggleBtn.onclick = bulkToggleSelectAll;
+                        toggleBtn.innerHTML = `
+                    <div class="flex items-center justify-center gap-2 w-full px-1">
+                        <span class="text-[14.5px] font-black leading-none">${count}</span>
+                        <i class="fa-regular ${isAllSelected ? 'fa-square-check' : 'fa-square'} text-base"></i>
+                    </div>
+                `;
                     }
                 } else {
                     if (bulkContainer) bulkContainer.classList.add('hidden');
                     if (bulkContainer) bulkContainer.classList.remove('flex');
-                    if (bulkSelectToggle) bulkSelectToggle.classList.add('hidden');
 
                     if (toggleBtn) {
-                        if (blankRecordMode === 'recycleBin') {
-                            toggleBtn.classList.remove('bg-emerald-600');
-                            toggleBtn.classList.add('bg-rose-500');
-                        } else {
-                            toggleBtn.classList.remove('bg-rose-500');
-                            toggleBtn.classList.add('bg-emerald-600');
-                        }
                         if (currentUser && currentUser.userId === 'admin') {
                             toggleBtn.style.display = '';
                             toggleBtn.style.width = '36px';
                             if (blankRecordMode === 'none') {
                                 toggleBtn.onclick = confirmLogout;
+                                toggleBtn.className = 'w-9 h-9 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform';
                                 toggleBtn.innerHTML = `<i id="toggle-icon" class="fa-solid fa-right-from-bracket text-sm"></i>`;
                             } else {
                                 toggleBtn.onclick = () => closeStudentForm();
@@ -5115,14 +4269,9 @@
                         } else {
                             toggleBtn.style.display = '';
                             toggleBtn.style.width = '36px';
-                            if (blankRecordMode === 'recycleBin') {
-                                toggleBtn.onclick = () => setBlankRecordMode('none');
-                                toggleBtn.innerHTML = `<i id="toggle-icon" class="fa-solid fa-xmark text-sm"></i>`;
-                            } else {
-                                toggleBtn.onclick = () => toggleStudentForm();
-                                const isAnyMode = blankRecordMode !== 'none';
-                                toggleBtn.innerHTML = `<i id="toggle-icon" class="fa-solid ${isAnyMode ? 'fa-xmark text-sm' : 'fa-solid fa-plus text-sm'}"></i>`;
-                            }
+                            toggleBtn.onclick = () => toggleStudentForm();
+                            const isAnyMode = blankRecordMode !== 'none';
+                            toggleBtn.innerHTML = `<i id="toggle-icon" class="fa-solid ${isAnyMode ? 'fa-xmark text-sm' : 'fa-solid fa-plus text-sm'}"></i>`;
                         }
                     }
                 }
@@ -5131,21 +4280,8 @@
             function resetBulkSelection() {
                 syncSelectedRecordsSection();
                 selectedRecords.clear();
-                if (activeStatusFilter === 'recycleBin') {
-                    binSelectedRecords.clear();
-                    renderRecycleBin();
-                } else {
-                    renderCurrentRecordsPage();
-                }
+                renderCurrentRecordsPage();
                 updateBulkHeader();
-            }
-
-            function handleBulkToggleSelectAll() {
-                if (activeStatusFilter === 'recycleBin') {
-                    toggleAllBinSelection();
-                } else {
-                    bulkToggleSelectAll();
-                }
             }
 
             function toggleRecordSelection(id, event) {
@@ -5229,7 +4365,6 @@
                         selectedRecords.clear();
                         filterRecords();
                         renderHomeAnalysis();
-                        updateBulkHeader();
                     }
                 }, 'Yes, Verify');
             }
@@ -5259,14 +4394,10 @@
                 showModal('confirm', 'Delete Selected?', `Are you sure you want to delete ${selectedRecords.size} records?`, () => {
                     const idsToDelete = Array.from(selectedRecords);
                     idsToDelete.forEach(id => {
-                        const rec = findRecordById(db, id);
-                        if(rec) {
-                            rec.isDeleted = true;
-                            rec.deletedAt = new Date().toISOString();
-                            storeRecordInDb(rec);
-                            try { if (window.idbPut) idbPut(IDB_STORE_RECORDS, rec).catch(()=>{}); } catch(e){}
-                            serverCallSilent('updateRecord', [rec], ()=>{}, ()=>{});
-                        }
+                        registerLocalDeletion(id);
+                        db = db.filter(r => normalizeRecordId(r.id) !== normalizeRecordId(id));
+                        try { if (window.idbDelete) idbDelete(IDB_STORE_RECORDS, id).catch(()=>{}); } catch(e){}
+                        serverCallSilent('deleteRecord', [id], ()=>{}, ()=>{});
                     });
 
                     
@@ -5274,7 +4405,6 @@
                     selectedRecords.clear();
                     filterRecords();
                     renderHomeAnalysis();
-                    updateBulkHeader();
                 }, 'Yes, Delete');
             }
 
@@ -5294,7 +4424,90 @@
                 }, 'Yes, Send');
             }
 
-                        async function bulkExportSelected() {
+            async function bulkDownloadSelectedJpg() {
+                if (selectedRecords.size === 0) return;
+                
+                const count = selectedRecords.size;
+                const btn = document.getElementById('btn-bulk-download-jpg');
+                const origHtml = btn ? btn.innerHTML : '';
+                if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[16px]"></i>';
+                
+                const origMode = blankRecordMode;
+                const origPreview = previewRecord;
+                
+                const overlay = document.createElement('div');
+                overlay.style.position = 'fixed';
+                overlay.style.top = '0'; overlay.style.left = '0'; overlay.style.width = '100vw'; overlay.style.height = '100vh';
+                overlay.style.backgroundColor = 'rgba(15, 23, 42, 0.95)';
+                overlay.style.zIndex = '999999';
+                overlay.style.display = 'flex'; overlay.style.flexDirection = 'column'; overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center'; overlay.style.color = 'white';
+                overlay.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-5xl mb-6 text-amber-500"></i><div id="bulk-jpg-progress" class="text-2xl font-black tracking-widest uppercase">Generating 0 / ' + count + '</div><div class="text-sm text-slate-400 mt-2">Please do not close this window</div>';
+                document.body.appendChild(overlay);
+
+                try {
+                    const zip = new JSZip();
+                    const folder = zip.folder("ID_Cards_JPG");
+                    let doneCount = 0;
+                    
+                    const recordsToExport = [];
+                    selectedRecords.forEach(id => {
+                        const rec = db.find(x => String(x.id) === String(id));
+                        if (rec) recordsToExport.push(rec);
+                    });
+
+                    for (let i = 0; i < recordsToExport.length; i++) {
+                        const rec = recordsToExport[i];
+                        doneCount++;
+                        document.getElementById('bulk-jpg-progress').innerText = `Generating ${doneCount} / ${count}`;
+                        
+                        previewRecord = rec;
+                        setBlankRecordMode('preview'); 
+                        
+                        // Wait for render and images to load
+                        await new Promise(res => setTimeout(res, 400));
+                        
+                        const card = document.querySelector('.preview-dark-card');
+                        if (card) {
+                            const actionBars = card.querySelectorAll('.preview-action-bar');
+                            actionBars.forEach(bar => bar.style.display = 'none');
+                            
+                            const dynamicScale = window.innerWidth < 768 ? 1 : 2;
+                            const canvas = await html2canvas(card, { scale: dynamicScale, useCORS: true, backgroundColor: '#1e293b' });
+                            
+                            actionBars.forEach(bar => bar.style.display = '');
+                            
+                            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                            const sn = rec.sn ? rec.sn : 'Unknown';
+                            const safeName = (rec.studentName || rec.name || 'Unknown').replace(/[^a-zA-Z0-9\s]/g, '_').trim();
+                            folder.file(`ID_Card_${sn}_${safeName}.jpg`, imgData.split(',')[1], {base64: true});
+                        }
+                    }
+                    
+                    document.getElementById('bulk-jpg-progress').innerText = "Zipping Files...";
+                    const content = await zip.generateAsync({type:"blob"});
+                    const downloadLink = document.createElement("a");
+                    downloadLink.href = URL.createObjectURL(content);
+                    downloadLink.download = `ID_Cards_${new Date().toISOString().split('T')[0]}.zip`;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                    
+                    showToast("Downloaded Successfully!");
+                } catch (e) {
+                    console.error("Bulk JPG Error:", e);
+                    showToast("Error generating JPGs", true);
+                } finally {
+                    if (btn) btn.innerHTML = origHtml;
+                    document.body.removeChild(overlay);
+                    previewRecord = origPreview;
+                    setBlankRecordMode(origMode);
+                    if (origMode === 'none') {
+                        renderCurrentRecordsPage();
+                    }
+                }
+            }
+
+            async function bulkExportSelected() {
                 if (selectedRecords.size === 0) return;
                 
                 showToast("Preparing Export... Please wait.");
@@ -5324,18 +4537,18 @@
                         let qrFileName = "";
                         if (qrEnabled) {
                             try {
-                                let qrLines = [];
-                                savedQrFields.forEach(f => {
-                                    let label = f.toUpperCase();
-                                    if (f === 'id') label = 'System ID';
-                                    else if (typeof FB_STANDARD_FIELDS !== 'undefined' && FB_STANDARD_FIELDS.some(sf => sf.id === f)) {
-                                        label = typeof fb_getStandardLabel === 'function' ? fb_getStandardLabel(f, FB_STANDARD_FIELDS.find(sf => sf.id === f).label) : FB_STANDARD_FIELDS.find(sf => sf.id === f).label;
-                                    } else if (typeof fb_fields !== 'undefined' && fb_fields.some(cf => cf.id === f)) {
-                                        label = fb_fields.find(cf => cf.id === f).label || f;
-                                    }
-                                    qrLines.push(`${label}: ${rec[f] || "-"}`);
-                                });
-                                let qrVal = qrLines.join('\n');
+                                let qrVal = "";
+                                if (savedQrFields.length === 1 && savedQrFields[0] === 'id') {
+                                    qrVal = String(rec.id);
+                                } else {
+                                    const obj = {};
+                                    savedQrFields.forEach(f => {
+                                        // For special labels, we might want to map keys to labels if needed. 
+                                        // But raw data works.
+                                        obj[f] = rec[f] || "";
+                                    });
+                                    qrVal = JSON.stringify(obj);
+                                }
                                 const qr = new QRious({
                                     value: qrVal,
                                     size: 300,
@@ -5495,19 +4708,9 @@
                     const isRecVerified = (x.verified === true || String(x.verified).toLowerCase() === 'true' || x.verified === 'Completed') && !isReturned;
                     const hasAppPhoto = (x.docUrl && x.docUrl.length > 10) || (x.photoData && x.photoData.length > 10) || (x.docFileId && String(x.docFileId).length > 5);
 
-                    let matchesClass = true;
-                    if (activeClassFilter !== 'all') matchesClass = (x.sclass === activeClassFilter);
-
-                    if (activeStatusFilter === 'recycleBin') {
-                        return (x.isDeleted === true || String(x.isDeleted).toLowerCase() === 'true') && matchesText && matchesClass;
-                    }
-                    if (x.isDeleted === true || String(x.isDeleted).toLowerCase() === 'true') {
-                        return false;
-                    }
-
                     if (currentUser && currentUser.userId === 'admin') {
-                        // Admin should not see pending records (without photos)
-                        if (activeStatusFilter === 'pending' || (!isRecVerified && !hasAppPhoto)) {
+                        // Admin should ONLY see verified records
+                        if (!isRecVerified) {
                             return false;
                         }
                     }
@@ -5520,7 +4723,8 @@
                         matchesStatus = (!isRecVerified && !hasAppPhoto) && !isReturned;
                     }
 
-
+                    let matchesClass = true;
+                    if (activeClassFilter !== 'all') matchesClass = (x.sclass === activeClassFilter);
                     return matchesText && matchesStatus && matchesClass;
                 });
                 renderRecords(res);
@@ -5642,7 +4846,6 @@
                 }
 
                 const total = currentRenderedRecords.length;
-                const dbTotal = db.length;
                 const startIndex = 0;
                 const showing = Math.min(currentRenderLimit, total);
                 countEl.innerHTML = `<i class="fa-solid fa-users text-[10px] mr-1"></i> ${total}`;
@@ -5724,12 +4927,53 @@
                     </tr>`;
             }
 
-            function buildRecycleBinHtml() {
+            async function fetchAndRenderSchoolActivity() {
+                const listEl = document.getElementById('school-activity-list');
+                if (!listEl) return;
+                
+                listEl.innerHTML = '<div class="flex items-center justify-center p-12 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>';
+                
+                try {
+                    const { collection, getDocs, query, orderBy, limit } = window.firebaseAPI;
+                    const q = query(collection(window.db, "activityLogs"), orderBy("timestamp", "desc"), limit(50));
+                    const snapshot = await getDocs(q);
+                    
+                    if (snapshot.empty) {
+                        listEl.innerHTML = '<div class="flex flex-col items-center justify-center p-12 text-slate-400"><i class="fa-solid fa-ghost text-4xl mb-3"></i><p>No activity logs found</p></div>';
+                        return;
+                    }
+                    
+                    let html = '<div class="overflow-x-auto"><table class="w-full text-left text-sm text-slate-600"><thead class="text-xs text-slate-400 uppercase bg-slate-50 border-b"><tr><th class="px-4 py-3">Date & Time</th><th class="px-4 py-3">User</th><th class="px-4 py-3">Device</th><th class="px-4 py-3">Location</th></tr></thead><tbody>';
+                    
+                    snapshot.forEach(doc => {
+                        const d = doc.data();
+                        const timeStr = new Date(d.timestamp).toLocaleString();
+                        const deviceIcon = d.deviceInfo === 'Mobile' ? 'fa-mobile-screen-button' : 'fa-desktop';
+                        html += `<tr class="border-b hover:bg-slate-50">
+                            <td class="px-4 py-3 font-medium whitespace-nowrap text-slate-700">${timeStr}</td>
+                            <td class="px-4 py-3"><div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 text-xs font-bold">${d.email ? d.email[0].toUpperCase() : '?'}</div>${d.email || 'Unknown'}</div></td>
+                            <td class="px-4 py-3"><i class="fa-solid ${deviceIcon} text-slate-400 mr-2"></i>${d.deviceInfo || 'Unknown'}</td>
+                            <td class="px-4 py-3 text-slate-500">${d.location || 'Unknown'}</td>
+                        </tr>`;
+                    });
+                    
+                    html += '</tbody></table></div>';
+                    listEl.innerHTML = html;
+                    
+                } catch(err) {
+                    console.error("Failed to fetch activity logs", err);
+                    listEl.innerHTML = '<div class="p-8 text-center text-rose-500">Failed to load logs. You might need to add Firestore index for this query.</div>';
+                }
+            }
+
+            function buildSchoolActivityHtml() {
+                setTimeout(fetchAndRenderSchoolActivity, 100);
                 return `
-                    <div class="flex-1 w-full overflow-y-auto min-h-0 bg-white" id="bin-content" style="min-height: 100%;">
-                        <!-- content will be injected by renderRecycleBin -->
+                <div class="flex flex-col h-full bg-white rounded-3xl p-6 shadow-sm border border-slate-100 mt-2">
+                    <div id="school-activity-list" class="flex-1 bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-inner">
+                        <div class="flex items-center justify-center p-12 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>
                     </div>
-                `;
+                </div>`;
             }
 
             function buildDataInformationHtml() {
@@ -5794,9 +5038,8 @@
                 syncSelectedRecordsSection();
 
                 const isPreview = (showBlankRecordCard && blankRecordMode === 'preview');
-                const isRecycleBinView = blankRecordMode === 'recycleBin';
 
-                t.className = ((showBlankRecordCard && !isRecycleBinView) || isPreview)
+                t.className = (showBlankRecordCard || isPreview)
                     ? 'overflow-visible bg-transparent shadow-none border-0 rounded-none'
                     : 'system-card rounded-3xl overflow-hidden';
 
@@ -5913,7 +5156,7 @@
                         const aspectStyle = `aspect-ratio: ${pWidth} / ${pHeight};`;
 
                         t.innerHTML = `
-                <div class="animate-in fade-in slide-in-from-bottom-4 duration-500 relative" ${isPreviewFromSave ? '' : 'ontouchstart="handlePreviewTouchStart(event)" ontouchend="handlePreviewTouchEnd(event)"'}>
+                <div class="animate-in fade-in slide-in-from-bottom-4 duration-500 relative" ${isPreviewFromSave ? '' : 'onmousedown="handlePreviewTouchStart(event)" onmouseup="handlePreviewTouchEnd(event)" onmouseleave="handlePreviewTouchCancel(event)" ontouchstart="handlePreviewTouchStart(event)" ontouchend="handlePreviewTouchEnd(event)" ontouchcancel="handlePreviewTouchCancel(event)"'}>
                     
                     ${isPreviewFromSave ? '' : `
                     <!-- Left Navigation Zone (Previous Card) -->
@@ -5936,7 +5179,6 @@
                                 <div class="flex items-center justify-center h-full w-full ${hasDoc ? 'hidden' : ''}">
                                     <i class="fa-solid fa-user-tie text-[#05996c] text-[130px]"></i>
                                 </div>
-
                             </div>
                         </div>
 
@@ -5987,7 +5229,7 @@
                                     <i class="fa-solid fa-hashtag text-[#05996c] text-[10px]"></i>
                                     <div class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">SN: ${ (() => {
                                         const isRecVerified = (rec.verified === true || String(rec.verified).toLowerCase() === 'true' || rec.verified === 'Completed');
-                                        const si = (schoolConfig.name || "DPS").trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase() || "DPS";
+                                        const si = (schoolConfig.code || "DPS").trim().toUpperCase() || "DPS";
                                         if (isRecVerified) {
                                             const snVal = (rec.sn && Number(rec.sn) < 1000000000) ? rec.sn : '0';
                                             const year = new Date(rec.createdAt || Date.now()).getFullYear().toString().slice(-2);
@@ -6006,7 +5248,7 @@
                         ${(isPreviewVerified || (rec.verified === 'Completed' && !isReturned)) ? 
                             (currentUser && currentUser.userId === 'admin' && rec.verified !== 'Completed' ? `
                             <!-- Admin Verified Actions Bar -->
-                            <div class="flex items-center justify-between gap-3 mt-2">
+                            <div class="flex items-center justify-between gap-3 mt-2 preview-action-bar">
                                 <button onclick="deleteFromPreview()" class="premium-btn-green flex-1 !py-2.5 !rounded-[18px] !bg-rose-500 hover:!bg-rose-600 !border-rose-600 shadow-sm text-[14px] flex items-center justify-center gap-2">
                                     <i class="fa-solid fa-trash-can"></i> Delete
                                 </button>
@@ -6017,7 +5259,7 @@
                             ` : ``) : `
                         <!-- Actions Bar -->
                         ${isPreviewFromSave ? `
-                        <div class="flex items-center gap-2 mt-1">
+                        <div class="flex items-center gap-2 mt-1 preview-action-bar">
                             <button onclick="editFromPreview()" class="w-10 h-10 shrink-0 rounded-full bg-emerald-600 text-white flex items-center justify-center active:scale-90 transition-transform shadow-sm" title="Edit Record">
                                 <i class="fa-solid fa-pen-to-square text-sm"></i>
                             </button>
@@ -6035,7 +5277,7 @@
                              </button>
                          </div>
                          ` : `
-                         <div class="flex items-center gap-3 mt-1">
+                         <div class="flex items-center gap-3 mt-1 preview-action-bar">
                              <button onclick="editFromPreview()" class="premium-btn-green flex-1 !py-4 !rounded-[18px] active:scale-95 transition-all">
                                  <i class="fa-solid fa-pen-to-square"></i> Edit
                              </button>
@@ -6103,15 +5345,13 @@
                             <i class="fa-solid fa-chevron-right text-slate-300 text-xs mr-1 group-hover:text-amber-500 transition-colors"></i>
                         </div>
 
-
-
                         <div onclick="openImportExportModal()" class="system-card p-5 rounded-2xl flex items-center gap-4 clickable-card hover:border-emerald-300 group">
                             <div class="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm">
-                                <i class="fa-solid fa-file-import text-xl"></i>
+                                <i class="fa-solid fa-file-export text-xl"></i>
                             </div>
                             <div class="flex-1">
-                                <h4 class="text-sm font-black text-slate-800">Import Data</h4>
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Upload student records from Excel</p>
+                                <h4 class="text-sm font-black text-slate-800">Export Data</h4>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Download Data spreadsheet & Photos</p>
                             </div>
                             <i class="fa-solid fa-chevron-right text-slate-300 text-xs mr-1 group-hover:text-emerald-500 transition-colors"></i>
                         </div>
@@ -6128,18 +5368,19 @@
                             <i class="fa-solid fa-chevron-right text-slate-300 text-xs mr-1 group-hover:text-red-500 transition-colors"></i>
                         </div>
                         ` : ''}
-                        <div onclick="activateRecycleBinFilter()" class="system-card p-5 rounded-2xl flex items-center gap-4 clickable-card hover:border-red-300 group">
-                            <div class="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center text-red-600 group-hover:bg-red-600 group-hover:text-white transition-all shadow-sm">
-                                <i class="fa-solid fa-trash-can text-xl"></i>
+
+                        ${(currentUser && currentUser.userId === 'admin') ? `
+                        <div onclick="closeSchoolConfig(); setTimeout(()=>setBlankRecordMode('edit_about'),60)" class="system-card p-5 rounded-2xl flex items-center gap-4 clickable-card hover:border-blue-300 group">
+                            <div class="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
+                                <i class="fa-solid fa-pen-to-square text-xl"></i>
                             </div>
                             <div class="flex-1">
-                                <h4 class="text-sm font-black text-slate-800">Recycle Bin</h4>
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">View deleted records</p>
+                                <h4 class="text-sm font-black text-slate-800">Edit System About</h4>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Edit system/about text (admin)</p>
                             </div>
-                            <i class="fa-solid fa-chevron-right text-slate-300 text-xs mr-1 group-hover:text-red-500 transition-colors"></i>
+                            <i class="fa-solid fa-chevron-right text-slate-300 text-xs mr-1 group-hover:text-blue-500 transition-colors"></i>
                         </div>
-
-                        
+                        ` : ''}
 
                         <!-- Added Logout Button -->
                         <div onclick="logoutUser()" class="system-card p-5 rounded-2xl flex items-center gap-4 clickable-card hover:border-rose-300 group">
@@ -6152,61 +5393,6 @@
                             </div>
                             <i class="fa-solid fa-chevron-right text-slate-300 text-xs mr-1 group-hover:text-rose-500 transition-colors"></i>
                         </div>
-
-                        <!-- Developer Contact Info Card -->
-                        <div class="system-card p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-                            <div class="flex items-center gap-3">
-                                <button type="button" onclick="openDevPhoto()" class="w-10 h-10 rounded-xl overflow-hidden bg-indigo-50 flex items-center justify-center border border-slate-200 shrink-0 transition-all hover:scale-105 active:scale-95" aria-label="Open developer photo">
-                                    <img src="Adminphoto .jpeg" alt="Admin Photo" class="w-full h-full object-cover">
-                                </button>
-                                <div>
-                                    <h4 class="text-sm font-normal">
-                                        <span class="text-emerald-600">IDentify</span>
-                                        <span class="text-slate-800"> By </span>
-                                        <span class="text-slate-800">Javed Ansari</span>
-                                    </h4>
-                                    <p class="text-[9px] font-bold text-slate-450 uppercase tracking-widest">Contact Info</p>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-[auto_max-content_auto_1fr] gap-x-2 gap-y-2 text-xs text-slate-600 pt-1 font-semibold pl-1 items-start">
-                                <div class="mt-[2px] text-slate-400 flex justify-center w-[14px]"><i class="fa-solid fa-phone"></i></div>
-                                <div>Mobile No</div>
-                                <div>:</div>
-                                <div><a href="tel:7999565002" class="text-indigo-600 hover:underline">7999565002</a></div>
-                                
-                                <div class="mt-[2px] text-slate-400 flex justify-center w-[14px]"><i class="fa-solid fa-envelope"></i></div>
-                                <div>Email ID</div>
-                                <div>:</div>
-                                <div class="break-all"><a href="mailto:Identify.jvd@gmail.com" class="text-indigo-600 hover:underline">Identify.jvd@gmail.com</a></div>
-                                
-                                <div class="mt-[2px] text-slate-400 flex justify-center w-[14px]"><i class="fa-solid fa-location-dot"></i></div>
-                                <div>Address</div>
-                                <div>:</div>
-                                <div class="leading-relaxed">
-                                    ${schoolConfig.address ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(schoolConfig.address)}" target="_blank" class="text-indigo-600 hover:underline">${sanitizeHTML(schoolConfig.address)}</a>` : '<span class="text-slate-500">Address not set</span>'}
-                                </div>
-                            </div>
-                            <div class="pt-3 border-t border-slate-200 flex flex-wrap gap-2 items-center justify-center">
-                                <a href="tel:${schoolConfig.mobile || '7999565002'}" class="w-9 h-9 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center hover:bg-slate-200 transition-all" title="Call">
-                                    <i class="fa-solid fa-phone"></i>
-                                </a>
-                                <a href="${schoolConfig.whatsapp || (schoolConfig.mobile ? `https://wa.me/${String(schoolConfig.mobile).replace(/\D/g,'')}` : 'https://wa.me/') }" target="_blank" rel="noopener noreferrer" class="w-9 h-9 rounded-full bg-green-100 text-green-700 flex items-center justify-center hover:bg-green-200 transition-all" title="WhatsApp">
-                                    <i class="fa-brands fa-whatsapp"></i>
-                                </a>
-                                <a href="mailto:${schoolConfig.email || 'Identify.jvd@gmail.com'}" class="w-9 h-9 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center hover:bg-slate-200 transition-all" title="Email">
-                                    <i class="fa-solid fa-envelope"></i>
-                                </a>
-                                <a href="${schoolConfig.youtube || 'https://www.youtube.com/'}" target="_blank" rel="noopener noreferrer" class="w-9 h-9 rounded-full bg-red-100 text-red-700 flex items-center justify-center hover:bg-red-200 transition-all" title="YouTube">
-                                    <i class="fa-brands fa-youtube"></i>
-                                </a>
-                                <a href="${schoolConfig.instagram || 'https://www.instagram.com/'}" target="_blank" rel="noopener noreferrer" class="w-9 h-9 rounded-full bg-pink-100 text-pink-700 flex items-center justify-center hover:bg-pink-200 transition-all" title="Instagram">
-                                    <i class="fa-brands fa-instagram"></i>
-                                </a>
-                                <a href="${schoolConfig.facebook || 'https://www.facebook.com/'}" target="_blank" rel="noopener noreferrer" class="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center hover:bg-blue-200 transition-all" title="Facebook">
-                                    <i class="fa-brands fa-facebook-f"></i>
-                                </a>
-                            </div>
-                        </div>
                     </div>
                 </div>`;
                         const countEl = document.getElementById('showing-count');
@@ -6217,10 +5403,13 @@
                         return;
                     }
 
-                    if (blankRecordMode === 'recycleBin') {
-                        t.innerHTML = buildRecycleBinHtml();
+                    if (blankRecordMode === 'schoolActivity') {
+                        t.innerHTML = buildSchoolActivityHtml();
+                        const countEl = document.getElementById('showing-count');
+                        const infoEl = document.getElementById('records-page-info');
+                        if (countEl) countEl.innerText = 'Logs';
+                        if (infoEl) infoEl.innerText = 'Live Feed';
                         lucide.createIcons();
-                        renderRecycleBin();
                         return;
                     }
 
@@ -6277,13 +5466,10 @@
                                     </div>
                                     
                                     <div>
-                                        <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-circle-info"></i> System About (Admin)</label>
-                                        <textarea id="manage-system-about" rows="3" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Enter system/about text for admin footer">${schoolConfig.systemAbout || schoolConfig.about || ''}</textarea>
-                                    </div>
-                                    <div>
                                         <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-map-location-dot"></i> Address</label>
                                         <input type="text" id="manage-school-address" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Full address" value="${schoolConfig.address || ''}">
                                     </div>
+                                    
                                     <div>
                                         <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-user-tie"></i> Contact Person</label>
                                         <input type="text" id="manage-school-contact" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Name" value="${schoolConfig.contactPerson || ''}">
@@ -6297,27 +5483,6 @@
                                         <div>
                                             <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-envelope"></i> Email</label>
                                             <input type="email" id="manage-school-email" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Email" value="${schoolConfig.email || ''}">
-                                        </div>
-                                    </div>
-
-                                    <div class="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-brands fa-whatsapp"></i> WhatsApp Link</label>
-                                            <input type="text" id="manage-school-whatsapp" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="https://wa.me/1234567890" value="${schoolConfig.whatsapp || ''}">
-                                        </div>
-                                        <div>
-                                            <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-brands fa-instagram"></i> Instagram Link</label>
-                                            <input type="text" id="manage-school-instagram" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="https://www.instagram.com/username" value="${schoolConfig.instagram || ''}">
-                                        </div>
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-3 mt-3">
-                                        <div>
-                                            <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-brands fa-youtube"></i> YouTube Link</label>
-                                            <input type="text" id="manage-school-youtube" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="https://www.youtube.com/channel/..." value="${schoolConfig.youtube || ''}">
-                                        </div>
-                                        <div>
-                                            <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-brands fa-facebook-f"></i> Facebook Link</label>
-                                            <input type="text" id="manage-school-facebook" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="https://www.facebook.com/username" value="${schoolConfig.facebook || ''}">
                                         </div>
                                     </div>
 
@@ -6341,13 +5506,91 @@
                                     <div id="school-create-msg" class="hidden text-sm font-bold rounded-xl px-4 py-2 mt-2"></div>
                                     
                                     <button id="btn-save-manage-school" onclick="saveAllManageSchoolDetails()" class="w-full py-4 mt-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm">
-                                        <i class="fa-solid fa-floppy-disk"></i> Save Details & Access
+                                        <i class="fa-solid fa-floppy-disk"></i> Save Details
                                     </button>
                                 </div>
                             </div>
                         `;
                         const countEl = document.getElementById('showing-count');
                         if (countEl) countEl.innerText = 'Manage';
+                        lucide.createIcons();
+                        return;
+                    }
+
+                    if (blankRecordMode === 'edit_about') {
+                        t.innerHTML = `
+                            <div class="p-6 bg-white rounded-3xl system-card flex flex-col items-start w-full max-w-md mx-auto">
+                                <div class="w-full space-y-4">
+                                    <div class="flex gap-4 items-center">
+                                        <div class="w-24 h-24 rounded-3xl bg-slate-50 border-2 border-dashed border-emerald-200 flex items-center justify-center cursor-pointer relative overflow-hidden shrink-0 hover:bg-emerald-50 transition group" onclick="document.getElementById('manage-school-logo').click()">
+                                            ${schoolConfig.logo ? `
+                                                <img src="${schoolConfig.logo}" id="manage-logo-preview-img" class="absolute inset-0 w-full h-full object-cover z-10 pointer-events-none">
+                                                <button type="button" id="manage-logo-remove-btn" onclick="event.stopPropagation(); removeManageSchoolLogo();" class="absolute top-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center z-20 shadow-md transform transition-transform opacity-0 group-hover:opacity-100">
+                                                    <i class="fa-solid fa-xmark text-xs"></i>
+                                                </button>
+                                            ` : `
+                                                <img src="" id="manage-logo-preview-img" class="absolute inset-0 w-full h-full object-cover z-10 hidden pointer-events-none">
+                                                <button type="button" id="manage-logo-remove-btn" onclick="event.stopPropagation(); removeManageSchoolLogo();" class="absolute top-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center z-20 shadow-md transform transition-transform hidden">
+                                                    <i class="fa-solid fa-xmark text-xs"></i>
+                                                </button>
+                                            `}
+                                            <i class="fa-solid fa-cloud-arrow-up text-emerald-400 text-xl mb-1 z-0"></i>
+                                            <span class="text-[9px] font-bold text-slate-400 z-0">PROFILE PHOTO</span>
+                                            <input type="file" id="manage-school-logo" accept="image/*" class="hidden" onchange="previewManageSchoolLogo(event)">
+                                        </div>
+                                        <div class="flex-1 space-y-2">
+                                            <div>
+                                                <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-phone"></i> Mobile No</label>
+                                                <input type="text" id="manage-school-mobile" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Phone" value="${schoolConfig.mobile || ''}">
+                                            </div>
+                                            <div>
+                                                <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-envelope"></i> Email</label>
+                                                <input type="email" id="manage-school-email" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Email" value="${schoolConfig.email || ''}">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-map-location-dot"></i> Address</label>
+                                        <input type="text" id="manage-school-address" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Full address" value="${schoolConfig.address || ''}">
+                                    </div>
+
+                                    <div>
+                                        <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-brands fa-whatsapp"></i> WhatsApp No</label>
+                                        <input type="text" id="manage-school-whatsapp" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Enter number" value="${schoolConfig.whatsapp || ''}">
+                                    </div>
+
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-brands fa-instagram"></i> Instagram</label>
+                                            <input type="text" id="manage-school-instagram" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Instagram URL" value="${schoolConfig.instagram || ''}">
+                                        </div>
+                                        <div>
+                                            <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-brands fa-youtube"></i> YouTube</label>
+                                            <input type="text" id="manage-school-youtube" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="YouTube URL" value="${schoolConfig.youtube || ''}">
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-brands fa-facebook-f"></i> Facebook</label>
+                                        <input type="text" id="manage-school-facebook" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Facebook URL" value="${schoolConfig.facebook || ''}">
+                                    </div>
+
+                                    <div>
+                                        <label class="premium-label !text-[11px] !tracking-widest uppercase"><i class="fa-solid fa-circle-info"></i> System About (Admin)</label>
+                                        <textarea id="manage-system-about" rows="4" class="w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 transition" placeholder="Enter system/about text for admin footer">${schoolConfig.systemAbout || schoolConfig.about || ''}</textarea>
+                                    </div>
+
+                                    <div id="school-create-msg" class="hidden text-sm font-bold rounded-xl px-4 py-2 mt-2"></div>
+
+                                    <button id="btn-save-manage-school" onclick="saveAllManageSchoolDetails()" class="w-full py-4 mt-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm">
+                                        <i class="fa-solid fa-floppy-disk"></i> Save Details
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        const countEl = document.getElementById('showing-count');
+                        if (countEl) countEl.innerText = 'About';
                         lucide.createIcons();
                         return;
                     }
@@ -6575,19 +5818,17 @@
                             const pWidth = pMeta.width || 600;
                             const pHeight = pMeta.height || 800;
                             return `
-                        <div class="premium-photo-frame relative" onclick="handleFrameClick(event)" style="aspect-ratio: ${pWidth} / ${pHeight};">
+                        <div class="premium-photo-frame" onclick="handleFrameClick(event)" style="aspect-ratio: ${pWidth} / ${pHeight};">
                             <img id="blank-photo-preview-img" src="${photoSrc}" class="${isPhotoPresent ? '' : 'hidden'} w-full h-full object-cover">
                             <div id="blank-photo-placeholder" class="flex items-center justify-center h-full w-full" style="${isPhotoPresent ? 'display:none' : ''}">
                                 <i class="fa-solid fa-user-tie text-[#05996c] text-[150px]"></i>
                             </div>
-                            ${isPhotoPresent ? `
-                            <button type="button" id="blank-crop-photo-btn" onclick="event.stopPropagation(); openCropModal();" class="absolute bottom-1 left-1 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform hover:bg-blue-600" title="Crop Photo">
-                                <i class="fa-solid fa-crop-simple text-[11px]"></i>
+                            <button id="blank-crop-photo-btn" type="button" onclick="event.stopPropagation(); openCropModal();" class="absolute bottom-1 left-1 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform" style="${isPhotoPresent ? '' : 'display:none'}">
+                                <i class="fa-solid fa-crop-simple"></i>
                             </button>
-                            <button type="button" id="blank-remove-photo-btn" onclick="event.stopPropagation(); removePhoto();" class="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform hover:bg-rose-600" title="Delete Photo">
-                                <i class="fa-solid fa-xmark text-[12px]"></i>
+                            <button id="blank-remove-photo-btn" type="button" onclick="event.stopPropagation(); removePhoto();" class="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform" style="${isPhotoPresent ? '' : 'display:none'}">
+                                <i class="fa-solid fa-xmark"></i>
                             </button>
-                            ` : ''}
                         </div>`;
                         })() : ''}
                         
@@ -6648,12 +5889,10 @@
                     return;
                 }
                 const pageItems = currentRenderedRecords.slice(0, currentRenderLimit);
-
                 if (pageItems.length === 0) {
                     t.innerHTML = '<div class="p-10 text-center text-slate-400 text-sm">No records found</div>';
                     return;
                 }
-
                 t.innerHTML = generateRecordsHtml(pageItems);
 
                 if (currentRenderLimit < currentRenderedRecords.length) {
@@ -6693,46 +5932,7 @@
                     }
 
                     // Records list - split click zones
-                    if (activeStatusFilter === 'recycleBin') {
-                        html += `
-            <div class="flex items-stretch border-b border-gray-100 last:border-0 h-[72px] transition hover:bg-slate-50/50">
-                <div class="flex flex-1 items-stretch min-w-0">
-                    <div class="w-16 bg-[var(--accent-soft)] flex-shrink-0 flex items-center justify-center border-r border-gray-50 relative overflow-hidden">
-                        ${(photoSrc && photoSrc.length > 8) ? `<img src="${photoSrc}" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="text-2xl font-black text-emerald-600/20" style="display:none">${initial}</span>` : `<span class="text-2xl font-black text-emerald-600/20">${initial}</span>`}
-                    </div>
-                    <div class="flex-1 px-4 flex flex-col justify-center min-w-0">
-                        <div class="font-extrabold text-[15px] text-emerald-700 truncate whitespace-nowrap">${sanitizeHTML(x.studentName || 'Unnamed')}</div>
-                        <div class="text-[11.5px] text-slate-500 font-bold truncate whitespace-nowrap">${(x.gender || '').toLowerCase().includes('female') ? 'D/o' : 'S/o'}: ${sanitizeHTML(x.fatherName || '-')}</div>
-                    </div>
-                </div>
-                <div class="px-4 flex items-center justify-end gap-3 min-w-[120px] record-selection-zone" data-id="${x.id}" data-hasdoc="${hasDoc}">
-                    <div class="flex flex-col items-end justify-center gap-0.5 mr-1">
-                        <div class="text-[12px] font-black text-emerald-600 uppercase tracking-tight">${sanitizeHTML(x.sclass || '-')}</div>
-                        <div class="flex items-center gap-1 opacity-60">
-                            
-                            ${syncIconStatusHtml}
-                            ${isRecVerified ? '<span class="material-symbols-outlined text-[12px]" style="font-variation-settings: \'FILL\' 1;">verified</span>' : ''}
-                            ${isRecVerified ? '' : (hasDoc ? '<span class="material-symbols-outlined text-[12px]" style="font-variation-settings: \'FILL\' 1;">unpublished</span>' : '<span class="material-symbols-outlined text-[12px]" style="font-variation-settings: \'FILL\' 1;">no_photography</span>')}
-                        </div>
-                    </div>
-                    ${(selectedRecords.size > 0) ? `
-                        <div class="bulk-cb w-[18px] h-[18px] rounded-md border-2 ${selectedRecords.has(String(x.id)) ? 'bg-emerald-600 border-emerald-600' : 'bg-white border-slate-300'} flex items-center justify-center transition-all" data-id="${x.id}">
-                            <i class="${selectedRecords.has(String(x.id)) ? 'fa-solid fa-check text-[10px] text-white' : ''}"></i>
-                        </div>
-                    ` : `
-                        <div class="flex items-center gap-2">
-                            <button onclick="event.stopPropagation(); restoreRecord('${x.id}')" class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all shadow-sm" title="Restore">
-                                <span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">settings_backup_restore</span>
-                            </button>
-                            <button onclick="binLpClick('${x.id}', event)" class="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center hover:bg-rose-600 hover:text-white transition-all shadow-sm" title="Delete Permanently">
-                                <i class="fa-solid fa-trash-can text-[14px]"></i>
-                            </button>
-                        </div>
-                    `}
-                </div>
-            </div>`;
-                    } else {
-                        html += `
+                    html += `
             <div class="flex items-stretch border-b border-gray-100 last:border-0 h-[72px] transition cursor-pointer hover:bg-slate-50/50 active:bg-emerald-50/40">
                 <!-- Data & Photo View: Preview Zone -->
                 <div class="flex flex-1 items-stretch min-w-0 record-preview-zone" data-id="${x.id}" data-hasdoc="${!hasDoc}">
@@ -6764,7 +5964,6 @@
                     </div>
                 </div>
             </div>`;
-                    }
                 });
                 return html;
             }
@@ -6798,11 +5997,7 @@
                     setupLazyLoadObserver();
                 }
                 lucide.createIcons();
-            }
-
-
-
-            function setChipFilter(type, value) {
+            }            function setChipFilter(type, value) {
                 if (type === 'status') {
                     activeStatusFilter = value;
                     if (value === 'all') {
@@ -6813,8 +6008,6 @@
                         showToast('<span class="material-symbols-outlined text-[18px] mr-2" style="font-variation-settings: \'FILL\' 1; vertical-align: middle;">unpublished</span> Unverified Selected');
                     } else if (value === 'pending') {
                         showToast('<span class="material-symbols-outlined text-[18px] mr-2" style="font-variation-settings: \'FILL\' 1; vertical-align: middle;">no_photography</span> No Photos Selected');
-                    } else if (value === 'recycleBin') {
-                        showToast('<span class="material-symbols-outlined text-[18px] mr-2" style="font-variation-settings: \'FILL\' 1; vertical-align: middle;">delete</span> Recycle Bin Selected');
                     }
                 } else if (type === 'class') {
                     activeClassFilter = (value === 'All Data' || value === 'All Class') ? 'all' : value;
@@ -6833,13 +6026,11 @@
                 const penBtn = document.getElementById('btn-pending');
                 const compBtn = document.getElementById('btn-completed'); // assuming this ID exists
                 const clsBtn = document.getElementById('filterClassBtn');
-                const binBtn = document.getElementById('btn-recycle-bin');
 
                 if (verBtn) verBtn.classList.toggle('active', activeStatusFilter === 'verified');
                 if (unverBtn) unverBtn.classList.toggle('active', activeStatusFilter === 'unverified');
                 if (penBtn) penBtn.classList.toggle('active', activeStatusFilter === 'pending');
                 if (allBtn) allBtn.classList.toggle('active', activeStatusFilter === 'all');
-                if (binBtn) binBtn.classList.toggle('active', activeStatusFilter === 'recycleBin');
 
                 // Sync Home chip UI
                 const hAll = document.getElementById('home-btn-all');
@@ -6868,7 +6059,7 @@
                 const baseDb = activeClassFilter === 'all' ? db : db.filter(x => x.sclass === activeClassFilter);
                 const filteredDb = baseDb.filter(x => !(x.isDeleted === true || String(x.isDeleted).toLowerCase() === 'true'));
                 const total = filteredDb.length;
-                const binTotal = baseDb.filter(x => x.isDeleted === true || String(x.isDeleted).toLowerCase() === 'true').length;
+                const binTotal = (bin && bin.length) || 0;
 
                 let verifiedCount = 0;
                 let unverifiedCount = 0;
@@ -6924,7 +6115,6 @@
                     updateEl('btn-verified', `<span class="material-symbols-outlined text-[16px] -mt-0.5" style="font-variation-settings: 'FILL' 1;">verified</span> (${verifiedCount})`);
                     updateEl('btn-unverified', `<span class="material-symbols-outlined text-[16px] -mt-0.5" style="font-variation-settings: 'FILL' 1;">unpublished</span> (${unverifiedCount})`);
                     updateEl('btn-pending', `<span class="material-symbols-outlined text-[16px] -mt-0.5" style="font-variation-settings: 'FILL' 1;">no_photography</span> (${pendingCount})`);
-                    updateEl('btn-recycle-bin', `<span class="material-symbols-outlined text-[16px] -mt-0.5" style="font-variation-settings: 'FILL' 1;">delete</span> (${binTotal})`);
 
                     // Home Tab Buttons
                     updateEl('home-btn-all', `All Data (${total})`);
@@ -6939,7 +6129,7 @@
                 const binBadge = document.getElementById('bin-count-text');
                 if (binBadge) binBadge.innerText = binTotal;
             }
-            function renderRecords(d) { currentRenderedRecords = getSortedRecords(d); currentRenderLimit = 30; renderCurrentRecordsPage(); maybeFlushPendingHighlight(); syncChipCounts(); persistLocalUnverified(); }
+            function renderRecords(d) { currentRenderedRecords = getSortedRecords(d); currentRenderLimit = 30; renderCurrentRecordsPage(); maybeFlushPendingHighlight(); syncChipCounts(); }
             window.addEventListener('storage', (event) => {
                 if (event.key === RECORD_UPDATES_KEY) refreshDatabaseAfterCertificateUpdate();
                 if (event.key && event.key.startsWith('identify_fb_')) {
@@ -7231,8 +6421,6 @@
                 document.getElementById('custom-modal').classList.add('hidden');
                 const progressWrap = document.getElementById('modal-progress-wrap');
                 if (progressWrap) progressWrap.classList.add('hidden');
-                const closeIcon = document.getElementById('modal-close-icon');
-                if (closeIcon) closeIcon.classList.add('hidden');
                 setTimeout(() => maybeFlushPendingHighlight(), 80);
             }
             function confirmReset() { showModal('confirm', 'Reset Form?', 'All entered data will be lost. Are you sure?', () => resetForm(), 'Yes, Reset'); }
@@ -7288,17 +6476,16 @@
                         const year = new Date().getFullYear().toString().slice(-2);
                         
                         let localMaxSn = 0;
-                        db.forEach(r => {
-                            if (r.id && !r.id.startsWith('draft_') && r.sn && Number(r.sn) < 1000000000 && Number(r.sn) > localMaxSn) {
-                                localMaxSn = Number(r.sn);
-                            }
-                        });
+                        db.forEach(x => { if (x.id && !x.id.startsWith('draft_') && x.sn && Number(x.sn) < 1000000000 && Number(x.sn) > localMaxSn) localMaxSn = Number(x.sn); });
+                        const savedSn = parseInt(localStorage.getItem(SN_KEY)) || 0;
+                        if (savedSn > localMaxSn) localMaxSn = savedSn;
                         
                         let nextSn;
                         try {
                             nextSn = await new Promise((resolve, reject) => {
                                 serverCall('generateId', [localMaxSn], resolve, reject);
                             });
+                            try { localStorage.setItem(SN_KEY, nextSn); } catch(e){}
                         } catch(e) {
                             console.error('Background ID generation failed:', e);
                             const idxInDb = db.findIndex(x => x.id === localRec.id);
@@ -7313,7 +6500,7 @@
                             showToast("Network Error: ID Generation Failed. Saved as Draft.", "error");
                             return;
                         }
-                        
+
                         const paddedSn = String(nextSn).padStart(3, '0');
                         const generatedId = `${schoolCode}${year}${paddedSn}`;
                         
@@ -7337,19 +6524,13 @@
                             _pending: true
                         };
                     } else {
-                        const existingIdx = db.findIndex(x => x.id === finalRec.id);
-                        if (existingIdx !== -1) {
-                            db[existingIdx] = { ...db[existingIdx], verified: true, verifiedBy: getCurrentUserName(), verifiedAt: getFormattedTimestamp(nowTs), draftStatus: '', _syncStatus: 'syncing', _pending: true };
-                            finalRec = db[existingIdx];
-                        } else {
-                            finalRec.verified = true;
-                            finalRec.verifiedBy = getCurrentUserName();
-                            finalRec.verifiedAt = getFormattedTimestamp(nowTs);
-                            finalRec.draftStatus = '';
-                            finalRec._syncStatus = 'syncing';
-                            finalRec._pending = true;
-                            db.unshift(finalRec);
-                        }
+                        finalRec.verified = true;
+                        finalRec.verifiedBy = getCurrentUserName();
+                        finalRec.verifiedAt = getFormattedTimestamp(nowTs);
+                        finalRec.draftStatus = '';
+                        finalRec._syncStatus = 'syncing';
+                        finalRec._pending = true;
+                        db.unshift(finalRec);
                     }
                     renderCurrentRecordsPage();
 
@@ -7370,7 +6551,6 @@
             // Verify current previewRecord and move to next pending
             async function verifyAndGoNext() {
                 if (isActionPending) return;
-                commitUnsavedPreviewRecord();
                 if (!previewRecord || !previewRecord.id) return;
                 isActionPending = true;
                 const localRec = { ...previewRecord };
@@ -7409,17 +6589,16 @@
                         const year = new Date().getFullYear().toString().slice(-2);
                         
                         let localMaxSn = 0;
-                        db.forEach(r => {
-                            if (r.id && !r.id.startsWith('draft_') && r.sn && Number(r.sn) < 1000000000 && Number(r.sn) > localMaxSn) {
-                                localMaxSn = Number(r.sn);
-                            }
-                        });
+                        db.forEach(x => { if (x.id && !x.id.startsWith('draft_') && x.sn && Number(x.sn) < 1000000000 && Number(x.sn) > localMaxSn) localMaxSn = Number(x.sn); });
+                        const savedSn = parseInt(localStorage.getItem(SN_KEY)) || 0;
+                        if (savedSn > localMaxSn) localMaxSn = savedSn;
                         
                         let nextSn;
                         try {
                             nextSn = await new Promise((resolve, reject) => {
                                 serverCall('generateId', [localMaxSn], resolve, reject);
                             });
+                            try { localStorage.setItem(SN_KEY, nextSn); } catch(e){}
                         } catch(e) {
                             console.error('Background ID generation failed in verifyAndGoNext:', e);
                             const idxInDb = db.findIndex(x => x.id === localRec.id);
@@ -7494,37 +6673,7 @@
                 }
             }
 
-            function commitUnsavedPreviewRecord() {
-                if (!previewRecord || !previewRecord._isUnsaved) return;
-                previewRecord._isUnsaved = false;
-                
-                const localRec = { ...previewRecord };
-                delete localRec._displayPhotoSrc;
-                delete localRec._isUnsaved;
-                
-                localRec.createdAt = localRec.createdAt || Date.now();
-                localRec.updatedAt = Date.now();
-                localRec._pending = true;
-                localRec._syncStatus = 'pending';
-                
-                try {
-                    idbPut(IDB_STORE_RECORDS, { ...localRec }).catch(() => { });
-                    if (localRec.photoData && localRec.photoData.startsWith('data:image')) {
-                        const blob = dataUrlToBlob(localRec.photoData);
-                        if (blob) {
-                            const attachId = `${localRec.id}::photo`;
-                            idbPut(IDB_STORE_ATTACH, { id: attachId, blob: blob, savedAt: Date.now() }).catch(() => { });
-                        }
-                    }
-                } catch (e) { console.warn('IDB persist failed', e); }
-                
-                addActivity(previewRecord._eid ? 'UPDATE' : 'ADD', localRec);
-                if (!previewRecord._eid) clearDraft();
-                storeRecordInDb(localRec);
-            }
-
             function saveAndNew(skipServerFinalize = false) {
-                commitUnsavedPreviewRecord();
                 const studentName = (previewRecord && previewRecord.studentName) ? previewRecord.studentName.trim() : 'Student';
                 const firstName = studentName.split(' ')[0];
                 const isVerified = previewRecord && previewRecord.verified && String(previewRecord.verified).toLowerCase() !== 'false';
@@ -7532,15 +6681,13 @@
 
                 // Background Finalization
                 if (!skipServerFinalize && previewRecord && previewRecord.id) {
-                    if (isVerified) {
-                        setSyncStatus('Saving ' + firstName + '...', 40);
-                        const finalRec = { ...previewRecord };
-                        serverCallSilent('updateRecord', [finalRec], (res) => {
-                            setSyncStatus(firstName + ' Saved!', 100);
-                            setTimeout(() => setSyncStatus(''), 2000);
-                            loadAllData(() => { filterRecords(); renderHomeAnalysis(); });
-                        });
-                    }
+                    setSyncStatus('Saving ' + firstName + '...', 40);
+                    const finalRec = { ...previewRecord };
+                    serverCallSilent('updateRecord', [finalRec], (res) => {
+                        setSyncStatus(firstName + ' Saved!', 100);
+                        setTimeout(() => setSyncStatus(''), 2000);
+                        loadAllData(() => { filterRecords(); renderHomeAnalysis(); });
+                    });
                     draftServerRecordId = '';
                 }
 
@@ -7615,14 +6762,11 @@
                         }
                     }
 
-                    const rec = findRecordById(db, id);
-                    if(rec) {
-                        rec.isDeleted = true;
-                        rec.deletedAt = new Date().toISOString();
-                        storeRecordInDb(rec);
-                        try { if (window.idbPut) idbPut(IDB_STORE_RECORDS, rec).catch(()=>{}); } catch(e){}
-                        serverCallSilent('updateRecord', [rec], ()=>{}, ()=>{});
-                    }
+                    registerLocalDeletion(id);
+                    db = db.filter(r => normalizeRecordId(r.id) !== normalizeRecordId(id));
+                    if (typeof window.queueServerDraftSync === 'function') window.queueServerDraftSync();
+                    try { if (window.idbDelete) idbDelete(IDB_STORE_RECORDS, id).catch(()=>{}); } catch(e){}
+                    serverCallSilent('deleteRecord', [id], ()=>{}, ()=>{});
                     showToast('Record removed successfully');
 
                     renderHomeAnalysis();
@@ -7709,7 +6853,7 @@
                 _lpTimer = setTimeout(() => {
                     _lpDidTrigger = true;
                     if (navigator.vibrate) navigator.vibrate(50);
-                    if (activeStatusFilter === 'recycleBin' || activeStatusFilter === 'unverified' || activeStatusFilter === 'pending' || (currentUser && currentUser.userId === 'admin' && (activeStatusFilter === 'verified' || activeStatusFilter === 'all'))) {
+                    if (activeStatusFilter === 'unverified' || activeStatusFilter === 'pending' || (currentUser && currentUser.userId === 'admin' && (activeStatusFilter === 'verified' || activeStatusFilter === 'all'))) {
                         toggleRecordSelection(id, null);
                     }
                 }, 500); // 500ms long press
@@ -7725,7 +6869,7 @@
                     _lpDidTrigger = false;
                     return;
                 }
-                if ((activeStatusFilter === 'recycleBin' || activeStatusFilter === 'unverified' || activeStatusFilter === 'pending' || (currentUser && currentUser.userId === 'admin' && (activeStatusFilter === 'verified' || activeStatusFilter === 'all'))) && selectedRecords.size > 0) {
+                if ((activeStatusFilter === 'unverified' || activeStatusFilter === 'pending' || (currentUser && currentUser.userId === 'admin' && (activeStatusFilter === 'verified' || activeStatusFilter === 'all'))) && selectedRecords.size > 0) {
                     toggleRecordSelection(id, null);
                 } else {
                     openStudentDetailPopup(id, false, !hasDoc);
@@ -7733,13 +6877,68 @@
             }
 
             let _previewTouchStartX = 0;
+            let _previewLpTimer = null;
+            let _previewLpDidTrigger = false;
+
+            function downloadPreviewCardAsJpg() {
+                const card = document.querySelector('.preview-dark-card');
+                if (!card) return;
+                
+                showToast("Generating JPG...");
+                if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+                
+                // Hide the navigation buttons temporarily so they don't appear in the image
+                const navButtons = document.querySelectorAll('.fixed.top-\\[100px\\]');
+                navButtons.forEach(btn => btn.style.display = 'none');
+                
+                // Hide the preview action buttons
+                const actionBars = document.querySelectorAll('.preview-action-bar');
+                actionBars.forEach(bar => bar.style.display = 'none');
+                
+                const dynamicScale = window.innerWidth < 768 ? 1 : 2;
+                html2canvas(card, {
+                    scale: dynamicScale, // High resolution for desktop, 1x for mobile to prevent memory crash
+                    useCORS: true,
+                    backgroundColor: '#1e293b' // match dark card background
+                }).then(canvas => {
+                    navButtons.forEach(btn => btn.style.display = '');
+                    actionBars.forEach(bar => bar.style.display = '');
+                    
+                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                    const link = document.createElement('a');
+                    link.href = imgData;
+                    const sn = previewRecord ? previewRecord.sn : 'Unknown';
+                    link.download = `ID_Card_${sn}.jpg`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    showToast("Downloaded Successfully!");
+                }).catch(err => {
+                    navButtons.forEach(btn => btn.style.display = '');
+                    actionBars.forEach(bar => bar.style.display = '');
+                    console.error(err);
+                    showToast("Error generating JPG");
+                });
+            }
+
             function handlePreviewTouchStart(e) {
+                _previewLpDidTrigger = false;
                 if (e.changedTouches && e.changedTouches.length > 0) {
                     _previewTouchStartX = e.changedTouches[0].screenX;
+                } else if (e.screenX) {
+                    _previewTouchStartX = e.screenX; // For mouse
                 }
+                
+                _previewLpTimer = setTimeout(() => {
+                    _previewLpDidTrigger = true;
+                    downloadPreviewCardAsJpg();
+                }, 700); // 700ms long press
             }
 
             function handlePreviewTouchEnd(e) {
+                if (_previewLpTimer) clearTimeout(_previewLpTimer);
+                if (_previewLpDidTrigger) return;
+                
                 if (e.changedTouches && e.changedTouches.length > 0) {
                     let touchEndX = e.changedTouches[0].screenX;
                     let diff = touchEndX - _previewTouchStartX;
@@ -7752,7 +6951,19 @@
                         if (navigator.vibrate) navigator.vibrate(15);
                         openNextPreview();
                     }
+                } else if (e.screenX) {
+                    let mouseEndX = e.screenX;
+                    let diff = mouseEndX - _previewTouchStartX;
+                    if (diff > 60) {
+                        openPrevPreview();
+                    } else if (diff < -60) {
+                        openNextPreview();
+                    }
                 }
+            }
+
+            function handlePreviewTouchCancel(e) {
+                if (_previewLpTimer) clearTimeout(_previewLpTimer);
             }
 
             let _homeTouchStartX = 0;
@@ -7797,15 +7008,7 @@
                 }
             }, { passive: true });
             function handleHomeSwipe(direction) {
-                const statuses = ['all', 'verified', 'unverified', 'pending'];
-                let currentIndex = statuses.indexOf(activeStatusFilter);
-                if (direction === 'left') {
-                    currentIndex = (currentIndex + 1) % statuses.length;
-                } else {
-                    currentIndex = (currentIndex - 1 + statuses.length) % statuses.length;
-                }
-                if (navigator.vibrate) navigator.vibrate(15);
-                setChipFilter('status', statuses[currentIndex]);
+                // Swipe disabled in Admin Panel
             }
 
             // --- STUDENT DETAIL POPUP (HOME PAGE ROW TAP) ---
@@ -7818,7 +7021,6 @@
                 }
                 // Redirect to Premium Preview Page instead of showing a popup
                 previewRecord = rec;
-                previewRecord._isEditingMode = isPendingContext || isSavePreview;
                 if (currentTab !== 'records') {
                     showTab('records');
                 }
@@ -7919,9 +7121,8 @@
             }
         </script>
 
-
-
-    <div id="account-modal"
+        <!-- Universal Modals & Overlays (Contained in Phone Shape) -->
+        <div id="account-modal"
             class="absolute inset-0 z-[10900] hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div class="popup-card rounded-3xl p-6 max-w-md w-full shadow-2xl">
                 <div class="flex items-center justify-between border-b border-slate-200 pb-4 mb-4">
@@ -7967,10 +7168,7 @@
 
         <div id="custom-modal"
             class="absolute inset-0 z-[9999] hidden flex items-center justify-center p-4 modal-bg bg-black/50 backdrop-blur-sm">
-            <div class="popup-card rounded-3xl p-8 max-sm w-full shadow-2xl transform transition-all scale-100 relative">
-                <button id="modal-close-icon" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 hidden transition-colors" onclick="closeModal()">
-                    <i class="fa-solid fa-xmark text-2xl"></i>
-                </button>
+            <div class="popup-card rounded-3xl p-8 max-sm w-full shadow-2xl transform transition-all scale-100">
                 <div id="modal-icon" class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"></div>
                 <div id="modal-subtitle" class="hidden text-emerald-600 font-extrabold text-base text-center mb-1"></div>
                 <h3 id="modal-title" class="text-xl font-bold text-center mb-2"></h3>
@@ -8098,7 +7296,7 @@
                     <h3 id="settings-school-name-display" class="text-xl font-black text-slate-800 mb-1">School Name
                     </h3>
                     <p id="settings-about-display" class="text-xs text-slate-400 font-bold uppercase tracking-widest">
-                        System About</p>
+                        About School Info</p>
                 </div>
 
                 <div class="px-8 space-y-5 flex-1 overflow-y-auto custom-scroll system-scroll pb-10">
@@ -8141,14 +7339,17 @@
 
                     <div onclick="closeSchoolConfig(); openImportExportModal();"
                         class="bg-emerald-50 rounded-3xl p-4 border border-emerald-100 flex flex-col items-center cursor-pointer hover:bg-emerald-100 transition">
-                        <i class="fa-solid fa-file-import text-emerald-600 mb-2"></i>
-                        <span class="text-[9px] font-black text-emerald-800 uppercase">Import Data</span>
+                        <i class="fa-solid fa-file-export text-emerald-600 mb-2"></i>
+                        <span class="text-[9px] font-black text-emerald-800 uppercase">Export Data</span>
                     </div>
 
                     <div onclick="logoutUser()"
                         class="bg-rose-50 rounded-3xl p-4 border border-rose-100 flex flex-col items-center cursor-pointer hover:bg-rose-500 group transition">
-                        <i class="fa-solid fa-right-from-bracket text-rose-500 group-hover:text-white transition mb-2"></i>
-                        <span class="text-[9px] font-black text-rose-500 uppercase group-hover:text-white transition">Exit System</span>
+                        <i
+                            class="fa-solid fa-right-from-bracket text-rose-500 group-hover:text-white transition mb-2"></i>
+                        <span
+                            class="text-[9px] font-black text-rose-500 uppercase group-hover:text-white transition">Exit
+                            System</span>
                     </div>
 
                 </div>
@@ -8300,7 +7501,6 @@
             closeSchoolConfig();
             if (typeof previousBlankRecordMode !== 'undefined') previousBlankRecordMode = 'settings';
             
-            // Fetch the latest config from Firestore to make sure we show the current credentials
             if (typeof fetchSystemConfigFromFirebase === 'function') {
                 try {
                     await fetchSystemConfigFromFirebase();
@@ -8312,10 +7512,22 @@
             setBlankRecordMode('manage_school');
         }
 
+        function openEditSystemAbout() {
+            closeSchoolConfig();
+            if (typeof previousBlankRecordMode !== 'undefined') previousBlankRecordMode = 'settings';
+            setBlankRecordMode('edit_about');
+        }
+
         function openDataInformation() {
             closeSchoolConfig();
             if (typeof previousBlankRecordMode !== 'undefined') previousBlankRecordMode = 'settings';
             setBlankRecordMode('dataInfo');
+        }
+
+        function openSchoolActivity() {
+            closeSchoolConfig();
+            if (typeof previousBlankRecordMode !== 'undefined') previousBlankRecordMode = 'settings';
+            setBlankRecordMode('schoolActivity');
         }
 
         function openSettingsModal() {
@@ -9041,6 +8253,10 @@
                 enabled: !!fb_standard_config[id].enabled,
                 options: Array.isArray(meta.options) && meta.options.length ? meta.options.slice() : fb_getStandardSelectOptions(id)
             };
+            if (id === 'photo') {
+                fb_editor_draft.width = meta.width || 600;
+                fb_editor_draft.height = meta.height || 800;
+            }
             const backdrop = document.getElementById('fb_edit_backdrop');
             if (backdrop) backdrop.classList.add('active');
             fb_renderEditor();
@@ -9082,11 +8298,27 @@
                     </div>
                 `
                     : '';
+                const dimensionHtml = (field.id === 'photo')
+                    ? `
+                <div class="flex gap-4 mt-4">
+                    <div class="flex-1">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Photo Save Width (px)</label>
+                        <input type="number" value="${field.width || 600}" class="app-input text-slate-700 font-bold" oninput="fb_editorSetDimension('width', this.value)" placeholder="600">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Photo Save Height (px)</label>
+                        <input type="number" value="${field.height || 800}" class="app-input text-slate-700 font-bold" oninput="fb_editorSetDimension('height', this.value)" placeholder="800">
+                    </div>
+                </div>
+                ` : '';
+
                 content.innerHTML = `
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Field Label</label>
                     <input type="text" value="${String(field.label || '').replace(/"/g, '&quot;')}" class="app-input text-slate-700 font-bold" oninput="fb_editorSetLabel(this.value)" placeholder="Field label">
                 </div>
+                ${optionsHtml}
+                ${dimensionHtml}
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Field Type</label>
                     ${isFixedTopField
@@ -9175,6 +8407,11 @@
             fb_editor_draft.options[index] = value;
         }
 
+        function fb_editorSetDimension(key, value) {
+            if (!fb_editor_draft) return;
+            fb_editor_draft[key] = parseInt(value, 10) || 0;
+        }
+
         function fb_editorAddOption() {
             if (!fb_editor_draft || fb_editor_draft.type !== 'select') return;
             if (!Array.isArray(fb_editor_draft.options)) fb_editor_draft.options = [];
@@ -9217,6 +8454,10 @@
                     type: cleanType,
                     options: cleanType === 'select' ? cleanOptions : []
                 };
+                if (sid === 'photo') {
+                    fb_standard_meta[sid].width = fb_editor_draft.width || 600;
+                    fb_standard_meta[sid].height = fb_editor_draft.height || 800;
+                }
                 fb_syncToAppData();
                 fb_closeEditor();
                 showToast('Field updated.');
@@ -9411,7 +8652,7 @@
                         btn.innerHTML = origText;
                         btn.disabled = false;
                     }
-                    setBlankRecordMode('none');
+                    setBlankRecordMode('settings');
                     showToast('Form updated successfully!');
                 }, 1000);
             }, (err) => {
@@ -9475,7 +8716,6 @@
                     photoData = dataUrl;
                     showPhotoPreview(photoData);
                     if (typeof queueServerDraftSync === 'function') queueServerDraftSync();
-                    renderCurrentRecordsPage();
                 }
                 closeCropModal();
             }
@@ -9525,54 +8765,49 @@
         }
     </script>
     <script>
-    let ie_importParsedData = [];
-    let ie_importHeaders = [];
-
     function buildImportExportHtml() {
         return `
             <div class="p-6 bg-white rounded-3xl system-card flex flex-col items-start w-full max-w-md mx-auto mb-20">
                 <div class="w-full space-y-4">
                     
-                    <!-- Import Content -->
-                    <div id="ie-content-import" class="space-y-4 block w-full">
+                    <!-- Export Content -->
+                    <div id="ie-content-export" class="space-y-4 block w-full">
                         <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm w-full">
-                            <h3 class="text-[11px] font-black text-slate-800 mb-3 uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-file-excel text-emerald-500"></i> Upload Excel File</h3>
-                            <label id="ie-upload-label" class="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-center justify-center cursor-pointer hover:bg-emerald-100 transition group w-full text-center gap-3">
-                                <i class="fa-solid fa-cloud-arrow-up text-emerald-600 text-lg"></i>
-                                <span class="text-xs font-bold text-slate-700">Select File</span>
-                                <input type="file" id="ie-import-file" accept=".xlsx, .xls" class="hidden" onchange="ie_handleFileUpload(event)">
-                            </label>
-                            <div id="ie-import-file-details" class="hidden mt-3 p-3 bg-slate-50 rounded-xl border border-slate-100 relative group">
-                                <div class="flex items-center gap-2 mb-1">
-                                    <i class="fa-solid fa-file-excel text-emerald-500 text-sm"></i>
-                                    <p id="ie-import-filename" class="text-xs font-bold text-slate-800 truncate pr-6"></p>
-                                </div>
-                                <div class="flex justify-between items-center text-[10px] text-slate-500 font-medium pl-6">
-                                    <span id="ie-import-filesize"></span>
-                                    <span id="ie-import-rowcount" class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold"></span>
-                                </div>
-                                <button type="button" onclick="ie_removeImportFile()" class="absolute top-3 right-3 w-6 h-6 rounded-full bg-red-100 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm" title="Remove File">
-                                    <i class="fa-solid fa-xmark text-xs"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div id="ie-import-mapping-container" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hidden w-full">
-                            <h3 class="text-[11px] font-black text-slate-800 mb-1.5 uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-list-check text-emerald-500"></i> Select Columns to Import</h3>
-                            <p class="text-[10px] text-slate-500 mb-3 leading-tight">We found these columns in your Excel file. Select the ones you want to import.</p>
-                            
-                            <div class="flex items-center gap-2 px-3 mb-2">
-                                <span class="w-1/2 text-[10px] font-black text-slate-500 uppercase tracking-wider pl-6">Excel Column</span>
-                                <span class="w-1/2 text-[10px] font-black text-slate-500 uppercase tracking-wider pl-4">System Field</span>
-                            </div>
-
-                            <div id="ie-import-columns-grid" class="grid grid-cols-2 gap-2">
+                            <h3 class="text-[11px] font-black text-slate-800 mb-3 uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-table-columns text-blue-500"></i> Select Fields to Export</h3>
+                            <div id="ie-export-fields-grid" class="grid grid-cols-2 gap-2">
                                 <!-- Injected by JS -->
                             </div>
                         </div>
                         
-                        <button onclick="ie_runImport()" id="ie-btn-import" class="w-full py-3.5 rounded-xl bg-emerald-600 text-white font-black text-[13px] uppercase tracking-widest hover:bg-emerald-700 transition active:scale-[0.98] shadow-md flex items-center justify-center gap-2 hidden mt-2">
-                            <i class="fa-solid fa-upload"></i> Import Now
+                        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-4 w-full">
+                            <h3 class="text-[11px] font-black text-slate-800 mb-2 uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-sliders text-blue-500"></i> Advanced Options</h3>
+                            
+                            <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50 cursor-pointer hover:bg-blue-50 transition w-full">
+                                <input type="checkbox" id="ie-export-photos" class="w-4 h-4 accent-blue-600">
+                                <div class="flex-1">
+                                    <p class="text-[13px] font-bold text-slate-800">Include Photos</p>
+                                    <p class="text-[10px] text-slate-500 leading-tight mt-0.5">Downloads images into a separate folder</p>
+                                </div>
+                            </label>
+                            
+                            <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50 cursor-pointer hover:bg-blue-50 transition w-full">
+                                <input type="checkbox" id="ie-export-qr" onchange="ie_toggleExportQrFields()" class="w-4 h-4 accent-blue-600">
+                                <div class="flex-1">
+                                    <p class="text-[13px] font-bold text-slate-800">Generate QR Codes</p>
+                                    <p class="text-[10px] text-slate-500 leading-tight mt-0.5">Creates QR code images for each record</p>
+                                </div>
+                            </label>
+                            
+                            <div id="ie-export-qr-options" class="hidden pl-8 pr-3 py-3 mt-2 border-l-2 border-blue-200 w-full">
+                                <p class="text-[10px] font-bold text-slate-600 mb-2 uppercase tracking-wider">Select QR Data Fields</p>
+                                <div id="ie-export-qr-fields-grid" class="grid grid-cols-2 gap-2">
+                                    <!-- Injected by JS -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button onclick="ie_runExport()" id="ie-btn-export" class="w-full py-3.5 rounded-xl bg-blue-600 text-white font-black text-[13px] uppercase tracking-widest hover:bg-blue-700 transition active:scale-[0.98] shadow-md flex items-center justify-center gap-2 mt-2">
+                            <i class="fa-solid fa-download"></i> Export Now
                         </button>
                     </div>
                 </div>
@@ -9582,6 +8817,9 @@
 
     function openImportExportModal() {
         setBlankRecordMode('import_export');
+        setTimeout(() => {
+            ie_renderExportFields();
+        }, 50);
     }
     
     function closeImportExportModal() {
@@ -9592,437 +8830,170 @@
         // Obsolete
     }
     
-
-    function ie_removeImportFile() {
-        document.getElementById('ie-import-file').value = '';
-        const label = document.getElementById('ie-upload-label');
-        if (label) label.classList.remove('hidden');
-        document.getElementById('ie-import-file-details').classList.add('hidden');
-        document.getElementById('ie-import-mapping-container').classList.add('hidden');
-        document.getElementById('ie-btn-import').classList.add('hidden');
-        document.getElementById('ie-import-columns-grid').innerHTML = '';
-        ie_importParsedData = [];
-        ie_importHeaders = [];
-    }
-    
-    function ie_handleFileUpload(e) {
-        const file = e.target.files[0];
-        if (!file) return;
+    function ie_renderExportFields() {
+        const grid = document.getElementById('ie-export-fields-grid');
+        const qrGrid = document.getElementById('ie-export-qr-fields-grid');
+        let html = `<label class="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50"><input type="checkbox" value="_timestamp" class="ie-export-cb accent-blue-600 w-4 h-4" checked><span class="text-xs font-bold text-slate-700 truncate">Timestamp</span></label>`;
+        let qrHtml = `<label class="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:bg-blue-50"><input type="checkbox" value="id" class="ie-qr-cb accent-blue-600 w-3.5 h-3.5" checked><span class="text-[10px] font-bold text-slate-700 truncate">System ID</span></label>`;
         
-        const label = document.getElementById('ie-upload-label');
-        if (label) label.classList.add('hidden');
-        
-        document.getElementById('ie-import-filename').textContent = file.name;
-        document.getElementById('ie-import-filesize').textContent = (file.size / 1024).toFixed(1) + ' KB';
-        document.getElementById('ie-import-file-details').classList.remove('hidden');
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, {type: 'array'});
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            
-            ie_importParsedData = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
-            
-            document.getElementById('ie-import-rowcount').textContent = ie_importParsedData.length + ' Rows';
-            
-            if (ie_importParsedData.length > 0) {
-                ie_importHeaders = Object.keys(ie_importParsedData[0]);
-                
-                let optionsHtml = '<option value="">-- Ignore Column --</option>';
-                if (typeof FB_STANDARD_FIELDS !== 'undefined') {
-                    FB_STANDARD_FIELDS.forEach(sf => {
-                        optionsHtml += `<option value="${sf.id}">${sf.label}</option>`;
-                    });
+        fb_form_order.forEach(id => {
+            let f = null;
+            let label = '';
+            if (FB_STANDARD_FIELDS.some(sf => sf.id === id)) {
+                const stdField = FB_STANDARD_FIELDS.find(sf => sf.id === id);
+                if (!fb_standard_config[id] || fb_standard_config[id].enabled) {
+                    f = stdField;
+                    label = fb_getStandardLabel(id, stdField.label);
                 }
-                if (typeof fb_fields !== 'undefined') {
-                    fb_fields.forEach(cf => {
-                        if (cf.type !== 'section' && cf.type !== 'image' && cf.id !== 'photo') {
-                            optionsHtml += `<option value="${cf.id}">${cf.label}</option>`;
-                        }
-                    });
-                }
-                
-                let html = '';
-                ie_importHeaders.forEach((h, idx) => {
-                    const hLower = h.toLowerCase().trim();
-                    let matchedId = '';
-                    
-                    if (typeof FB_STANDARD_FIELDS !== 'undefined') {
-                        FB_STANDARD_FIELDS.forEach(sf => {
-                            if (sf.label.toLowerCase() === hLower || sf.id.toLowerCase() === hLower) matchedId = sf.id;
-                        });
-                    }
-                    if (!matchedId && typeof fb_fields !== 'undefined') {
-                        fb_fields.forEach(cf => {
-                            if (cf.label.toLowerCase() === hLower || cf.id.toLowerCase() === hLower) matchedId = cf.id;
-                        });
-                    }
-                    
-                    let selectHtml = optionsHtml;
-                    if (matchedId) {
-                        selectHtml = selectHtml.replace(`value="${matchedId}"`, `value="${matchedId}" selected`);
-                    }
-                    
-                    html += `
-                        <div class="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200">
-                            <label class="flex items-center gap-2 flex-1 cursor-pointer w-1/2 overflow-hidden">
-                                <input type="checkbox" value="${h}" id="ie-cb-${idx}" class="ie-import-cb accent-emerald-600 w-3.5 h-3.5 shrink-0" checked>
-                                <span class="text-[11px] font-bold text-slate-700 truncate" title="${h}">${h}</span>
-                            </label>
-                            <i class="fa-solid fa-arrow-right-long text-slate-300 text-[10px] shrink-0"></i>
-                            <select id="ie-sel-${idx}" class="ie-import-sel flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 w-1/2 truncate shrink-0">
-                                ${selectHtml}
-                            </select>
-                        </div>
-                    `;
-                });
-                
-                const grid = document.getElementById('ie-import-columns-grid');
-                grid.className = 'flex flex-col gap-2 max-h-60 overflow-y-auto custom-scroll pr-1';
-                grid.innerHTML = html;
-                document.getElementById('ie-import-mapping-container').classList.remove('hidden');
-                document.getElementById('ie-btn-import').classList.remove('hidden');
             } else {
-                showToast("The selected Excel file is empty.", true);
+                f = fb_fields.find(cf => cf.id === id);
+                if (f) label = f.label;
             }
-        };
-        reader.readAsArrayBuffer(file);
+            if (f && f.type !== 'section' && f.type !== 'image' && f.id !== 'photo') {
+                html += `<label class="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50"><input type="checkbox" value="${f.id}" class="ie-export-cb accent-blue-600 w-4 h-4" checked><span class="text-xs font-bold text-slate-700 truncate">${label}</span></label>`;
+                qrHtml += `<label class="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:bg-blue-50"><input type="checkbox" value="${f.id}" class="ie-qr-cb accent-blue-600 w-3.5 h-3.5"><span class="text-[10px] font-bold text-slate-700 truncate">${label}</span></label>`;
+            }
+        });
+        grid.innerHTML = html;
+        qrGrid.innerHTML = qrHtml;
     }
     
-    async function ie_runImport() {
-        const btn = document.getElementById('ie-btn-import');
+    function ie_toggleExportQrFields() {
+        const qrOpts = document.getElementById('ie-export-qr-options');
+        if (document.getElementById('ie-export-qr').checked) {
+            qrOpts.classList.remove('hidden');
+        } else {
+            qrOpts.classList.add('hidden');
+        }
+    }
+    
+    async function ie_runExport() {
+        const btn = document.getElementById('ie-btn-export');
         const origHTML = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Importing...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Preparing...';
         btn.disabled = true;
         
         try {
-            const selectedInputs = Array.from(document.querySelectorAll('.ie-import-cb:checked'));
-            if (selectedInputs.length === 0) throw new Error("No columns selected for import.");
+            const selectedFields = Array.from(document.querySelectorAll('.ie-export-cb:checked')).map(cb => cb.value);
+            const includePhotos = document.getElementById('ie-export-photos').checked;
+            const includeQr = document.getElementById('ie-export-qr').checked;
+            const qrFields = Array.from(document.querySelectorAll('.ie-qr-cb:checked')).map(cb => cb.value);
             
-            const mapping = {};
-            selectedInputs.forEach(cb => {
-                const col = cb.value;
-                const idx = cb.id.replace('ie-cb-', '');
-                const sel = document.getElementById('ie-sel-' + idx);
-                let matchedId = sel ? sel.value : null;
-                
-                mapping[col] = matchedId || col.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-            });
+            const zip = new JSZip();
+            const exportData = [];
+            const photoFolder = includePhotos ? zip.folder("Photos") : null;
+            const qrFolder = includeQr ? zip.folder("QR_Codes") : null;
             
-            let importCount = 0;
-            const schoolId = (schoolConfig && schoolConfig.loginId) ? schoolConfig.loginId : (currentUser ? currentUser.userId : 'anonymous');
-            
-            for (let i = 0; i < ie_importParsedData.length; i++) {
-                const row = ie_importParsedData[i];
-                const record = {
-                    createdAt: Date.now(),
-                    schoolId: schoolId,
-                    deviceId: localStorage.getItem('device_id') || 'web-import',
-                    syncStatus: 'synced'
-                };
+            for (let i = 0; i < db.length; i++) {
+                const rec = db[i];
+                let row = { 'System ID': rec.id };
                 
-                let hasPhoto = false;
-                
-                selectedInputs.forEach(cb => {
-                    const col = cb.value;
-                    const val = row[col];
-                    const sysId = mapping[col];
-                    record[sysId] = val;
-                    
-                    if (sysId === 'photoData' || sysId === 'docUrl' || col.toLowerCase() === 'photo' || col.toLowerCase() === 'image') {
-                        if (val && val.length > 5) {
-                            record.docUrl = val;
-                            hasPhoto = true;
-                        }
+                selectedFields.forEach(id => {
+                    if (id === '_timestamp') {
+                        row['Timestamp'] = rec.createdAt ? new Date(rec.createdAt).toLocaleString('en-IN') : (rec.updatedAt ? new Date(rec.updatedAt).toLocaleString('en-IN') : '');
+                        return;
                     }
+                    let label = id;
+                    if (FB_STANDARD_FIELDS.some(sf => sf.id === id)) {
+                        label = fb_getStandardLabel(id, FB_STANDARD_FIELDS.find(sf => sf.id === id).label);
+                    } else {
+                        const f = fb_fields.find(cf => cf.id === id);
+                        if (f) label = f.label;
+                    }
+                    row[label] = rec[id] || '';
                 });
+                exportData.push(row);
                 
-                if (hasPhoto) {
-                    record.status = 'unverified';
-                    record.verified = false; 
-                    record.returned = false;
-                } else {
-                    record.status = 'pending';
-                    record.verified = false;
-                    record.returned = false;
+                const safeName = ((rec.studentName || rec.name || rec.title || 'Unknown') + '').replace(/[^a-zA-Z0-9]/g, '_');
+                const safeId = String(rec.id || 'NID');
+                const baseFileName = `${safeName}_${safeId.substring(Math.max(0, safeId.length - 4))}`;
+                
+                if (includePhotos) {
+                    let photoUrl = rec.docUrl || rec.photoData;
+                    if (photoUrl) {
+                        try {
+                            if (photoUrl.startsWith('data:image')) {
+                                const base64Data = photoUrl.split(',')[1];
+                                photoFolder.file(`Photo_${baseFileName}.jpg`, base64Data, {base64: true});
+                            } else {
+                                photoUrl = fixDriveImageUrl(photoUrl);
+                                const response = await fetch(photoUrl, { mode: 'cors' });
+                                if (response.ok) {
+                                    const blob = await response.blob();
+                                    photoFolder.file(`Photo_${baseFileName}.jpg`, blob);
+                                }
+                            }
+                        } catch(e) {}
+                    }
                 }
                 
-                record.id = 'draft_' + Date.now() + '_' + Math.floor(Math.random() * 1000000) + '_' + i;
-                db.unshift(record);
-                serverCallSilent('addRecord', [record], ()=>{}, ()=>{});
-                importCount++;
+                if (includeQr) {
+                    let qrVal = "";
+                    if (qrFields.length === 1 && qrFields[0] === 'id') {
+                        qrVal = String(rec.id);
+                    } else {
+                        const obj = {};
+                        qrFields.forEach(f => { obj[f] = rec[f] || ""; });
+                        qrVal = JSON.stringify(obj);
+                    }
+                    try {
+                        const qr = new QRious({ value: qrVal, size: 300, level: 'H' });
+                        const qrBase64 = qr.toDataURL().split(',')[1];
+                        qrFolder.file(`QR_${baseFileName}.png`, qrBase64, {base64: true});
+                    } catch(e) {}
+                }
                 
-                // Update UI every 10 records and yield
-                if (importCount > 0 && importCount % 10 === 0) {
-                    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Importing ${importCount} / ${ie_importParsedData.length}`;
+                // Yield to main thread every 10 records to prevent browser freeze/crash
+                if (i > 0 && i % 10 === 0) {
                     await new Promise(r => setTimeout(r, 0));
                 }
             }
             
-            filterRecords();
-            renderHomeAnalysis();
-            closeImportExportModal();
-            showModal('success', 'Import Successful', `Successfully imported ${importCount} records into the pending list.`);
-            ie_removeImportFile();
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Exported_Data");
+            const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            zip.file("Data_Export.xlsx", excelBuffer);
+            
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Zipping...';
+            const content = await zip.generateAsync({type:"blob"});
+            const downloadLink = document.createElement("a");
+            downloadLink.href = URL.createObjectURL(content);
+            downloadLink.download = `System_Export_${new Date().toISOString().split('T')[0]}.zip`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            
+            showToast("Export Completed Successfully");
         } catch(err) {
             console.error(err);
-            showToast("Import failed: " + err.message, true);
+            showToast("Error during export: " + err.message, true);
         } finally {
             btn.innerHTML = origHTML;
             btn.disabled = false;
         }
     }
-
-    let tempPreviewPhotoData = null;
-
-    window.openPreviewPhotoActionModal = function() {
-        if (!previewRecord) return;
-        const modal = document.getElementById('custom-modal');
-        const iconDiv = document.getElementById('modal-icon');
-        const actions = document.getElementById('modal-actions');
-        const closeIcon = document.getElementById('modal-close-icon');
-        
-        modal.classList.remove('hidden');
-        if (closeIcon) closeIcon.classList.remove('hidden');
-
-        document.getElementById('modal-title').textContent = previewRecord.studentName || 'Student';
-        document.getElementById('modal-msg').textContent = 'Upload or capture a new photo.';
-        iconDiv.className = "w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center bg-emerald-50 text-emerald-600 border border-emerald-100";
-        iconDiv.innerHTML = '<i class="fa-solid fa-user-tie text-4xl"></i>';
-        
-        actions.innerHTML = `
-            <div class="flex flex-col gap-3 w-full">
-                <button onclick="closeModal(); triggerPreviewPopupUpload(false);" class="premium-btn-green py-3 !rounded-[18px] w-full flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-cloud-arrow-up text-sm"></i> Upload
-                </button>
-                <button onclick="closeModal(); triggerPreviewPopupUpload(true);" class="premium-btn-green py-3 !rounded-[18px] w-full flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-camera text-sm"></i> Capture
-                </button>
-            </div>
-        `;
-    };
-
-    window.triggerPreviewPopupUpload = function(capture) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        if (capture) input.capture = 'environment';
-        
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            setUploadFieldProgress('Compressing...', 10, true);
-            compressImage(file, (compFile, dataUrl) => {
-                tempPreviewPhotoData = dataUrl;
-                showPreviewPhotoOptionsModal();
-            });
-        };
-        input.click();
-    };
-
-    window.showPreviewPhotoOptionsModal = function() {
-        const modal = document.getElementById('custom-modal');
-        const iconDiv = document.getElementById('modal-icon');
-        const actions = document.getElementById('modal-actions');
-        
-        modal.classList.remove('hidden');
-        document.getElementById('modal-title').textContent = 'Photo Selected';
-        document.getElementById('modal-msg').textContent = 'What would you like to do with this photo?';
-        
-        iconDiv.className = "w-32 h-32 rounded-xl mx-auto mb-4 flex items-center justify-center overflow-hidden border-2 border-emerald-100 bg-black";
-        iconDiv.innerHTML = `<img src="${tempPreviewPhotoData}" class="w-full h-full object-contain">`;
-        
-        actions.innerHTML = `
-            <button onclick="closeModal(); openPreviewCropModal();" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 text-[13px]"><i class="fa-solid fa-crop-simple mr-1"></i> Crop</button>
-            <button onclick="closeModal(); savePreviewPopupPhoto();" class="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 text-[13px]"><i class="fa-solid fa-check mr-1"></i> Save</button>
-            <button onclick="closeModal(); tempPreviewPhotoData = null; openPreviewPhotoActionModal();" class="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 text-[13px]"><i class="fa-solid fa-trash mr-1"></i> Delete</button>
-        `;
-    };
-
-    window.openPreviewCropModal = function() {
-        if (!tempPreviewPhotoData) return;
-        const modal = document.getElementById('crop-modal');
-        const cropImg = document.getElementById('crop-modal-img');
-
-        cropImg.src = tempPreviewPhotoData;
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-
-        const pMeta = (typeof fb_standard_meta !== 'undefined' ? fb_standard_meta['photo'] : null) || (schoolConfig && schoolConfig.formMeta && schoolConfig.formMeta['photo']) || {};
-        const cWidth = pMeta.width || 600;
-        const cHeight = pMeta.height || 800;
-
-        if (window.cropperInstance) { window.cropperInstance.destroy(); }
-        window.cropperInstance = new Cropper(cropImg, {
-            aspectRatio: cWidth / cHeight,
-            viewMode: 1,
-            autoCropArea: 1,
-        });
-
-        const originalApplyCrop = window.applyCrop;
-        const originalCloseCropModal = window.closeCropModal;
-
-        window.applyCrop = function() {
-            if (!window.cropperInstance) return;
-            const pMeta = (typeof fb_standard_meta !== 'undefined' ? fb_standard_meta['photo'] : null) || (schoolConfig && schoolConfig.formMeta && schoolConfig.formMeta['photo']) || {};
-            const cWidth = pMeta.width || 600;
-            const cHeight = pMeta.height || 800;
-            const canvas = window.cropperInstance.getCroppedCanvas({ width: cWidth, height: cHeight });
-            if (canvas) {
-                tempPreviewPhotoData = canvas.toDataURL('image/jpeg', 0.6);
-            }
-            // Restore original functions
-            window.applyCrop = originalApplyCrop;
-            window.closeCropModal = originalCloseCropModal;
-            originalCloseCropModal();
-            showPreviewPhotoOptionsModal();
-        };
-
-        window.closeCropModal = function() {
-            // Restore original functions
-            window.applyCrop = originalApplyCrop;
-            window.closeCropModal = originalCloseCropModal;
-            originalCloseCropModal();
-            showPreviewPhotoOptionsModal();
-        };
-    };
-
-    window.savePreviewPopupPhoto = function() {
-        if (!previewRecord || !tempPreviewPhotoData) return;
-        commitUnsavedPreviewRecord();
-        
-        previewRecord.docUrl = tempPreviewPhotoData;
-        previewRecord.photoData = tempPreviewPhotoData;
-        previewRecord._displayPhotoSrc = tempPreviewPhotoData;
-        
-        // Move to unverified section
-        previewRecord.verified = false;
-        previewRecord.status = 'Pending';
-        previewRecord.returned = false;
-        
-        storeRecordInDb(previewRecord);
-        if (typeof queueServerDraftSync === 'function') queueServerDraftSync();
-        if (!String(previewRecord.id).startsWith('draft_') && !String(previewRecord.id).startsWith('TEMP_')) {
-            serverCallSilent('updateRecord', [previewRecord]);
-        }
-        
-        showToast('Photo saved. Card moved to Unverified.');
-        
-        tempPreviewPhotoData = null;
-        setBlankRecordMode('none');
-        renderCurrentRecordsPage();
-    };
     
     // Expose necessary functions to the global scope for inline HTML handlers
+    Object.assign(window, {
+        applyCrop, binLpClick, binLpRestoreClick, bulkBinDelete, bulkBinRestore, bulkDeleteSelected, 
+        bulkDownloadSelectedJpg, bulkExportSelected, bulkVerifySelected, clearActivity, closeAccountModal, 
+        closeCameraModal, closeCropModal, closeModal, closeSchoolConfig, closeStudentDetailPopup, 
+        confirmDeleteAllSystemData, deleteFromPreview, editFromPreview, fb_applyEditor, fb_closeEditor, 
+        fb_closeQuickAdd, fb_confirmQuickAdd, fb_deleteField, fb_editorAddOption, fb_editorRemoveOption, 
+        fb_editorSetDimension, fb_editorSetLabel, fb_editorSetOption, fb_editorSetType, fb_editorToggleRequired, 
+        fb_moveFieldInOrder, fb_openEditor, fb_openQuickAdd, fb_openStandardEditor, fb_permanentlyDeleteField, 
+        fb_quickAddAddOption, fb_removeStandardField, fb_restoreField, fb_saveForm, fb_toggleFieldQr, 
+        fb_toggleQrEnable, fb_toggleQuickAddOptions, fb_toggleRequired, fb_toggleStandardRequired, 
+        filterByClassFromDataInfo, goToDatabase, handleAadharInput, handleDobInput, handleFrameClick, 
+        handleHomeTouchEnd, handleHomeTouchStart, handleMobileInput, handlePreviewTouchCancel, handlePreviewTouchEnd, 
+        handlePreviewTouchStart, handleSortToggle, hideStatusCard, ie_runExport, ie_toggleExportQrFields, 
+        logoutUser, onSearchInput, openDataInformation, openFormBuilder, openImportExportModal, openManageSchools, 
+        openNextPreview, openPrevPreview, openSchoolConfig, openStudentDetailPopup, previewManageSchoolLogo, 
+        resetBulkSelection, saveAccountCredentials, saveAllManageSchoolDetails, saveAndNew, saveRecord, 
+        saveSettings, scrollTableRows, setBlankRecordMode, setFilterValue, setSort, showForgotFields, 
+        submitForgotPassword, submitLogin, syncBlankField, syncBlankSelect, syncToDrive, takeSnapshot, 
+        toggleAllBinSelection, toggleBinSelection, toggleFilterMenu, toggleLoginPassword, toggleManagePassword, 
+        toggleStudentForm, triggerPhotoCapture, triggerPhotoUpload, verifyFromPreview
+    });
     
-    </script>
-
-    <!-- Swipe to Back Functionality -->
-    <script>
-    (function() {
-        let touchstartX = 0;
-        let touchstartY = 0;
-        const SWIPE_THRESHOLD = 50; 
-        const EDGE_THRESHOLD = 50; 
-
-        document.addEventListener('touchstart', e => {
-            if (!e.changedTouches || e.changedTouches.length === 0) return;
-            touchstartX = e.changedTouches[0].screenX;
-            touchstartY = e.changedTouches[0].screenY;
-        }, {passive: true});
-
-        document.addEventListener('touchend', e => {
-            if (!e.changedTouches || e.changedTouches.length === 0) return;
-            const touchendX = e.changedTouches[0].screenX;
-            const touchendY = e.changedTouches[0].screenY;
-            
-            if (touchstartX > EDGE_THRESHOLD) return;
-            
-            const deltaX = touchendX - touchstartX;
-            const deltaY = Math.abs(touchendY - touchstartY);
-            
-            if (deltaX > SWIPE_THRESHOLD && deltaX > deltaY * 1.5) {
-                handleGlobalSwipeBack();
-            }
-        }, {passive: true});
-
-        // --- Modal State Management System ---
-        window.ModalManager = {
-            stack: [],
-            push: function(modalId, closeFn) {
-                this.remove(modalId);
-                this.stack.push({ id: modalId, close: closeFn });
-            },
-            remove: function(modalId) {
-                this.stack = this.stack.filter(m => m.id !== modalId);
-            },
-            pop: function() {
-                if (this.stack.length > 0) {
-                    const top = this.stack.pop();
-                    if (typeof top.close === 'function') top.close();
-                    else if (typeof window[top.close] === 'function') window[top.close]();
-                    return true;
-                }
-                return false;
-            }
-        };
-
-        const modalMap = {
-            'crop-modal': 'closeCropModal',
-            'custom-modal': 'closeModal',
-            'student-detail-popup': 'closeStudentDetailPopup',
-            'account-modal': 'closeAccountModal',
-            'school-config': 'closeSchoolConfig',
-            'import-export-modal': 'closeImportExportModal',
-            'student-form-section': 'closeStudentForm'
-        };
-
-        const observer = new MutationObserver(mutations => {
-            mutations.forEach(mutation => {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                    const el = mutation.target;
-                    const id = el.id;
-                    if (modalMap[id]) {
-                        const style = window.getComputedStyle(el);
-                        const isVisible = style.display !== 'none' && style.opacity !== '0' && style.visibility !== 'hidden' && !el.classList.contains('hidden') && !el.classList.contains('translate-y-full');
-                        if (isVisible) {
-                            window.ModalManager.push(id, modalMap[id]);
-                        } else {
-                            window.ModalManager.remove(id);
-                        }
-                    }
-                }
-            });
-        });
-
-        Object.keys(modalMap).forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                observer.observe(el, { attributes: true, attributeFilter: ['class'] });
-                // Initial check
-                const style = window.getComputedStyle(el);
-                const isVisible = style.display !== 'none' && style.opacity !== '0' && style.visibility !== 'hidden' && !el.classList.contains('hidden') && !el.classList.contains('translate-y-full');
-                if (isVisible) window.ModalManager.push(id, modalMap[id]);
-            }
-        });
-
-        function handleGlobalSwipeBack() {
-            window.ModalManager.pop();
-        }
-    })();
-    </script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(err => {
-                    console.log('Service Worker registration failed:', err);
-                });
-            });
-        }
-    </script>
-</body>
-
-</html>
-
