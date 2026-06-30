@@ -36,6 +36,48 @@
 
         import { firebaseConfig } from "./firebase-env.js";
 
+        const AUTH_USER_KEY = 'identify_auth_user';
+        let currentUser = null;
+
+        window.loadAuthUser = function() {
+            try {
+                const raw = localStorage.getItem(AUTH_USER_KEY);
+                if (raw) return JSON.parse(raw);
+            } catch (e) {}
+            return null;
+        }
+
+        // We also need loadAuthUser to be available locally in the module scope
+        function loadAuthUser() {
+            return window.loadAuthUser();
+        }
+
+        window.saveAuthUser = function(user) {
+            currentUser = user || null;
+            if (user) {
+                localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+                localStorage.setItem('last_active_time', Date.now());
+            } else {
+                localStorage.removeItem(AUTH_USER_KEY);
+                localStorage.removeItem('last_active_time');
+            }
+        }
+
+        function saveAuthUser(user) {
+            window.saveAuthUser(user);
+        }
+
+        window.logoutUser = function() {
+            saveAuthUser(null);
+            if(window.auth) {
+                import("https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js").then(module => {
+                    module.getAuth().signOut();
+                }).catch(e=>{});
+            }
+            window.location.replace('index.html');
+        }
+
+
         try {
             const app = initializeApp(firebaseConfig);
             window.db = getFirestore(app);
