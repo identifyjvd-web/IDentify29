@@ -8792,7 +8792,9 @@
         function fb_editorSetLabel(value) {
             if (!fb_editor_draft) return;
             fb_editor_draft.label = value;
-            fb_renderForm();\n}function fb_editorSetType(type) {
+            fb_renderForm();
+        }
+        function fb_editorSetType(type) {
             if (!fb_editor_draft) return;
             fb_editor_draft.type = type;
             if (type === 'select') {
@@ -8803,26 +8805,38 @@
                 fb_editor_draft.options = [];
             }
             
-            fb_renderForm();\n}function fb_editorToggleRequired() {
+            fb_renderForm();
+        }
+        function fb_editorToggleRequired() {
             if (!fb_editor_draft) return;
             fb_editor_draft.required = !fb_editor_draft.required;
             
-            fb_renderForm();\n}function fb_editorSetOption(index, value) {
+            fb_renderForm();
+        }
+        function fb_editorSetOption(index, value) {
             if (!fb_editor_draft || !Array.isArray(fb_editor_draft.options)) return;
             fb_editor_draft.options[index] = value;
-            fb_renderForm();\n}function fb_editorSetDimension(key, value) {
+            fb_renderForm();
+        }
+        function fb_editorSetDimension(key, value) {
             if (!fb_editor_draft) return;
             fb_editor_draft[key] = parseInt(value, 10) || 0;
-            fb_renderForm();\n}function fb_editorAddOption() {
+            fb_renderForm();
+        }
+        function fb_editorAddOption() {
             if (!fb_editor_draft || fb_editor_draft.type !== 'select') return;
             if (!Array.isArray(fb_editor_draft.options)) fb_editor_draft.options = [];
             fb_editor_draft.options.push(`Option ${fb_editor_draft.options.length + 1}`);
             
-            fb_renderForm();\n}function fb_editorRemoveOption(index) {
+            fb_renderForm();
+        }
+        function fb_editorRemoveOption(index) {
             if (!fb_editor_draft || !Array.isArray(fb_editor_draft.options)) return;
             fb_editor_draft.options.splice(index, 1);
             
-            fb_renderForm();\n}function fb_applyEditor() {
+            fb_renderForm();
+        }
+        function fb_applyEditor() {
             if (!fb_editor_draft) return;
             const label = String(fb_editor_draft.label || '').trim();
             if (!label) {

@@ -8239,42 +8239,6 @@
         </div>
     </div>
 
-    <div id="fb_edit_backdrop" class="fb-modal-backdrop" style="align-items: center;" onclick="fb_closeEditor(event)">
-        <div class="fb-modal-card premium-form-card relative overflow-hidden" onclick="event.stopPropagation()">
-            <!-- Premium Decorative Card Graphics -->
-            <svg class="absolute top-[-30px] right-[-30px] w-36 h-36 opacity-[0.06] text-emerald-800 pointer-events-none z-0" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="0.3">
-                <circle cx="50" cy="50" r="10" />
-                <circle cx="50" cy="50" r="20" />
-                <circle cx="50" cy="50" r="30" />
-                <circle cx="50" cy="50" r="40" />
-                <line x1="0" y1="50" x2="100" y2="50" />
-                <line x1="50" y1="0" x2="50" y2="100" />
-            </svg>
-
-            <svg class="absolute bottom-[-20px] left-[-20px] w-32 h-24 opacity-[0.06] text-blue-600 pointer-events-none z-0" viewBox="0 0 100 50" fill="none" stroke="currentColor" stroke-width="0.3">
-                <path d="M0,25 C20,10 40,40 60,25 C80,10 100,25 100,25" />
-                <path d="M0,30 C20,15 40,45 60,30 C80,15 100,30 100,30" />
-            </svg>
-
-            <div class="p-6 border-b border-gray-50 flex items-center justify-between bg-transparent relative z-10">
-                <div>
-                    <div class="text-sm font-black text-slate-800 uppercase tracking-tight">Edit Field</div>
-                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Update configurations
-                    </div>
-                </div>
-                <button onclick="fb_closeEditor()"
-                    class="w-9 h-9 rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-500 flex items-center justify-center text-slate-500 transition">
-                    <i class="fa-solid fa-xmark text-sm"></i>
-                </button>
-            </div>
-            <div class="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scroll" id="fb_edit_content"></div>
-            <div class="p-6 bg-slate-50">
-                <button onclick="fb_closeEditor()"
-                    class="w-full py-4 rounded-2xl bg-emerald-600 text-white font-black text-sm active:scale-95 transition shadow-sm">DONE</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Portable Dropdown Menus (Fixed to body for maximum layer support) -->
     <div id="filterSortMenu" class="filter-menu">
         <div class="menu-item" onclick="setSort('recent')"><i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
@@ -8773,6 +8737,7 @@
                             <i class="fa-solid fa-arrow-down text-xs"></i>
                         </button>
                     </div>
+                        ${isEditing ? `<div class="mt-3 p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl animate-fade-in flex flex-col gap-3">${fb_getEditorHTML()}</div>` : ''}
                     </div>`;
                     container.appendChild(div);
                     renderedCount++;
@@ -8821,6 +8786,7 @@
                                 <i class="fa-solid fa-arrow-down text-xs"></i>
                             </button>
                         </div>
+                        ${isEditing ? `<div class="mt-3 p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl animate-fade-in flex flex-col gap-3">${fb_getEditorHTML()}</div>` : ''}
                     </div>`;
                     container.appendChild(div);
                     renderedCount++;
@@ -9025,9 +8991,7 @@
             if (!field) return;
             fb_currentEditingId = id;
             fb_editor_draft = JSON.parse(JSON.stringify(field));
-            const backdrop = document.getElementById('fb_edit_backdrop');
-            if (backdrop) backdrop.classList.add('active');
-            fb_renderEditor();
+            
             fb_renderForm();
         }
 
@@ -9046,25 +9010,21 @@
                 enabled: !!fb_standard_config[id].enabled,
                 options: Array.isArray(meta.options) && meta.options.length ? meta.options.slice() : fb_getStandardSelectOptions(id)
             };
-            const backdrop = document.getElementById('fb_edit_backdrop');
-            if (backdrop) backdrop.classList.add('active');
-            fb_renderEditor();
+            if (id === 'photo') {
+                fb_editor_draft.width = meta.width || 600;
+                fb_editor_draft.height = meta.height || 800;
+            }
+            
             fb_renderForm();
         }
 
         function fb_closeEditor(evt) {
-            if (evt && evt.target && evt.target.id !== 'fb_edit_backdrop') return;
             fb_currentEditingId = null;
             fb_editor_draft = null;
-            const backdrop = document.getElementById('fb_edit_backdrop');
-            if (backdrop) backdrop.classList.remove('active');
             fb_renderForm();
         }
-
-        function fb_renderEditor() {
-            const content = document.getElementById('fb_edit_content');
-            if (!content || !fb_editor_draft) return;
-
+        function fb_getEditorHTML() {
+            if (!fb_editor_draft) return '';
             const field = fb_editor_draft;
             if (field.__source === 'standard') {
                 const isFixedTopField = FB_FIXED_TOP_FIELDS.includes(String(field.id || ''));
@@ -9085,13 +9045,27 @@
                             `).join('')}
                         </div>
                     </div>
-                `
-                    : '';
-                content.innerHTML = `
+                ` : '';
+                const dimensionHtml = (field.id === 'photo')
+                    ? `
+                <div class="flex gap-4 mt-4">
+                    <div class="flex-1">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Photo Save Width (px)</label>
+                        <input type="number" value="${field.width || 600}" class="app-input text-slate-700 font-bold" oninput="fb_editorSetDimension('width', this.value)" placeholder="600">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Photo Save Height (px)</label>
+                        <input type="number" value="${field.height || 800}" class="app-input text-slate-700 font-bold" oninput="fb_editorSetDimension('height', this.value)" placeholder="800">
+                    </div>
+                </div>
+                ` : '';
+
+                return `
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Field Label</label>
                     <input type="text" value="${String(field.label || '').replace(/"/g, '&quot;')}" class="app-input text-slate-700 font-bold" oninput="fb_editorSetLabel(this.value)" placeholder="Field label">
                 </div>
+                ${dimensionHtml}
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Field Type</label>
                     ${isFixedTopField
@@ -9106,9 +9080,11 @@
                     </button>
                 </div>
                 ${optionsHtml}
-                <button onclick="fb_applyEditor()" class="w-full py-4 rounded-2xl bg-emerald-600 text-white font-black text-sm active:scale-95 transition shadow-sm">APPLY CHANGES</button>
-            `;
-                return;
+                <div class="flex gap-2">
+                    <button onclick="fb_closeEditor()" class="flex-1 py-4 rounded-2xl bg-slate-200 text-slate-600 font-black text-sm active:scale-95 transition shadow-sm">CANCEL</button>
+                    <button onclick="fb_applyEditor()" class="flex-1 py-4 rounded-2xl bg-emerald-600 text-white font-black text-sm active:scale-95 transition shadow-sm">APPLY CHANGES</button>
+                </div>
+                `;
             }
 
             const typeOptions = ['text', 'number', 'date', 'select', 'image'].map(type => `<option value="${type}" ${field.type === type ? 'selected' : ''}>${type.toUpperCase()}</option>`).join('');
@@ -9128,10 +9104,9 @@
                         `).join('')}
                     </div>
                 </div>
-            `
-                : '';
+            ` : '';
 
-            content.innerHTML = `
+            return `
             <div>
                 <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Field Label</label>
                 <input type="text" value="${String(field.label || '').replace(/"/g, '&quot;')}" class="app-input text-slate-700 font-bold" oninput="fb_editorSetLabel(this.value)" placeholder="Field label">
@@ -9147,15 +9122,18 @@
                 </button>
             </div>
             ${optionsHtml}
-            <button onclick="fb_applyEditor()" class="w-full py-4 rounded-2xl bg-emerald-600 text-white font-black text-sm active:scale-95 transition shadow-sm">APPLY CHANGES</button>
-        `;
+            <div class="flex gap-2">
+                <button onclick="fb_closeEditor()" class="flex-1 py-4 rounded-2xl bg-slate-200 text-slate-600 font-black text-sm active:scale-95 transition shadow-sm">CANCEL</button>
+                <button onclick="fb_applyEditor()" class="flex-1 py-4 rounded-2xl bg-emerald-600 text-white font-black text-sm active:scale-95 transition shadow-sm">APPLY CHANGES</button>
+            </div>
+            `;
         }
 
         function fb_editorSetLabel(value) {
             if (!fb_editor_draft) return;
             fb_editor_draft.label = value;
+            fb_renderForm();
         }
-
         function fb_editorSetType(type) {
             if (!fb_editor_draft) return;
             fb_editor_draft.type = type;
@@ -9166,33 +9144,38 @@
             } else {
                 fb_editor_draft.options = [];
             }
-            fb_renderEditor();
+            
+            fb_renderForm();
         }
-
         function fb_editorToggleRequired() {
             if (!fb_editor_draft) return;
             fb_editor_draft.required = !fb_editor_draft.required;
-            fb_renderEditor();
+            
+            fb_renderForm();
         }
-
         function fb_editorSetOption(index, value) {
             if (!fb_editor_draft || !Array.isArray(fb_editor_draft.options)) return;
             fb_editor_draft.options[index] = value;
+            fb_renderForm();
         }
-
+        function fb_editorSetDimension(key, value) {
+            if (!fb_editor_draft) return;
+            fb_editor_draft[key] = parseInt(value, 10) || 0;
+            fb_renderForm();
+        }
         function fb_editorAddOption() {
             if (!fb_editor_draft || fb_editor_draft.type !== 'select') return;
             if (!Array.isArray(fb_editor_draft.options)) fb_editor_draft.options = [];
             fb_editor_draft.options.push(`Option ${fb_editor_draft.options.length + 1}`);
-            fb_renderEditor();
+            
+            fb_renderForm();
         }
-
         function fb_editorRemoveOption(index) {
             if (!fb_editor_draft || !Array.isArray(fb_editor_draft.options)) return;
             fb_editor_draft.options.splice(index, 1);
-            fb_renderEditor();
+            
+            fb_renderForm();
         }
-
         function fb_applyEditor() {
             if (!fb_editor_draft) return;
             const label = String(fb_editor_draft.label || '').trim();
@@ -9222,6 +9205,10 @@
                     type: cleanType,
                     options: cleanType === 'select' ? cleanOptions : []
                 };
+                if (sid === 'photo') {
+                    fb_standard_meta[sid].width = fb_editor_draft.width || 600;
+                    fb_standard_meta[sid].height = fb_editor_draft.height || 800;
+                }
                 fb_syncToAppData();
                 fb_closeEditor();
                 showToast('Field updated.');
@@ -9416,7 +9403,7 @@
                         btn.innerHTML = origText;
                         btn.disabled = false;
                     }
-                    setBlankRecordMode('none');
+                    setBlankRecordMode('settings');
                     showToast('Form updated successfully!');
                 }, 1000);
             }, (err) => {
@@ -9480,7 +9467,6 @@
                     photoData = dataUrl;
                     showPhotoPreview(photoData);
                     if (typeof queueServerDraftSync === 'function') queueServerDraftSync();
-                    renderCurrentRecordsPage();
                 }
                 closeCropModal();
             }
